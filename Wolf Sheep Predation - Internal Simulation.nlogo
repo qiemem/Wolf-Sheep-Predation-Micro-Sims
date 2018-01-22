@@ -1,18 +1,10 @@
 extensions [ ls profiler ]
 
-globals [
-  micro-sim-results ; only used if this is a micro-sim
-]
 ; Sheep and wolves are both breeds of turtle.
 breed [ sheep a-sheep ]  ; sheep is its own plural, so we use "a-sheep" as the singular.
 breed [ wolves wolf ]
 turtles-own [
   energy
-  vision
-  sim-n
-  sim-ticks
-  sim-depth
-  move-history
 ]       ; both wolves and sheep have energy
 patches-own [ countdown ]
 
@@ -72,11 +64,6 @@ to init-wolf
   set color black
   set size 2
   set energy random (2 * wolf-gain-from-food)
-  set vision wolf-vision
-  set sim-n wolf-sim-n
-  set sim-ticks wolf-sim-ticks
-  set sim-depth wolf-sim-depth
-  set move-history []
 end
 
 to init-sheep
@@ -84,23 +71,18 @@ to init-sheep
   set color white
   set size 1.5
   set energy random (2 * sheep-gain-from-food)
-  set vision sheep-vision
-  set sim-n sheep-sim-n
-  set sim-ticks sheep-sim-ticks
-  set sim-depth sheep-sim-depth
-  set move-history []
 end
 
 to go
   ask sheep [
-    move
+    move-smart sheep-vision sheep-sim-n sheep-sim-l
     set energy energy - 1  ; deduct energy for sheep only if running sheep-wolf-grass model version
     eat-grass  ; sheep eat grass only if running sheep-wolf-grass model version
     death ; sheep die from starvation only if running sheep-wolf-grass model version=
     reproduce-sheep  ; sheep reproduce at random rate governed by slider
   ]
   ask wolves [
-    move
+    move-smart wolf-vision wolf-sim-n wolf-sim-l
     set energy energy - 1  ; wolves lose energy as they move
     eat-sheep ; wolves eat a sheep on their patch
     death ; wolves die if our of energy
@@ -112,32 +94,30 @@ to go
   display-labels
 end
 
-to move  ; turtle procedure
-  let m 0
-  ifelse sim-depth <= 0 [
-    set m one-of [ -30 0 30 ]
-  ] [
-    let results simulate
-    let left-score safe-mean map last filter [ p -> first p = -30 ] results
-    let fwd-score safe-mean map last filter [ p -> first p = 0 ] results
-    let right-score safe-mean map last filter [ p -> first p = 30 ] results
-    ifelse left-score > right-score [
-      ifelse left-score > fwd-score [
-        set m -30
-      ] [
-        set m 0
-      ]
-    ] [
-      ifelse right-score > fwd-score [
-        set m 30
-      ] [
-        set m 0
-      ]
-    ]
-  ]
-  set move-history lput m move-history
-  rt m
+to move-random  ; turtle procedure
+  rt one-of [ -30 0 30 ]
   fd 1
+end
+
+to move-smart [ vision n l ]
+  let results  ifelse-value (n = 0 or l = 0) [ [] ] [ simulate vision n l ]
+  ifelse empty? results [
+    move-random
+  ] [
+    rt pick-best results
+    fd 1
+  ]
+end
+
+to-report pick-best [ results ]
+  let moves remove-duplicates map first results
+  let scores map [ m -> safe-mean map last filter [ p -> first p = m ] results ] moves
+  let best max scores
+  (foreach moves scores [ [ m s ] ->
+    if s = best [
+      report m
+    ]
+  ])
 end
 
 to-report safe-mean [ lst ]
@@ -148,92 +128,66 @@ to-report safe-mean [ lst ]
   ]
 end
 
-to-report simulate
-  setup-mind
-
-
-  ls:let my-breed (word breed)
-  let xc xcor
-  let yc ycor
-  ls:let wolf-coords [ list (xcor - xc ) (ycor - yc) ] of wolves in-radius vision
-  ls:let sheep-coords [ list (xcor - xc) (ycor - yc) ] of sheep in-radius vision
-  let grass-in-vision patches in-radius vision
-  ls:let live-grass [ list (pxcor - xc) (pycor - yc) ] of grass-in-vision with [ pcolor = green ]
-  ls:let dead-grass [ list (pxcor - xc) (pycor - yc) ] of grass-in-vision with [ pcolor = brown ]
-
-  ls:let my-energy energy
-  let results []
-
-  ls:let n sim-n
-  ls:let ts sim-ticks
-  let i 0
-  ls:ask 0 [
-    let results []
-    repeat n [
-      ca
-      crt 1 [
-        ifelse my-breed = "sheep" [
-          set breed sheep
-          init-sheep
-        ] [
-          set breed wolves
-          init-wolf
-        ]
-        set energy energy
-      ]
-      init-config wolf-coords sheep-coords live-grass dead-grass (length live-grass / (length live-grass + length dead-grass))
-      reset-ticks
-
-      go
-      if turtle 0 != nobody [
-        let first-move [ first move-history ] of turtle 0
-        repeat (ts - 1) [
-          go
-        ]
-        ifelse turtle 0 = nobody [
-          set results lput (list first-move 0) results
-        ] [
-          set results lput (list first-move [ energy ] of turtle 0) results
-        ]
-      ]
-    ]
-    set micro-sim-results results
-  ]
-  report [ micro-sim-results ] ls:of 0
+to-report simulate [ vision num len ]
+  setup-mind vision
+  report (ls:report 0 [ [n l] -> run-micro-sims n l ] num len)
 end
 
-to setup-mind
+to setup-mind [ vision ]
   if empty? ls:models [
-    ls:create-models 1 "Wolf Sheep Predation - Internal Simulation.nlogo"
+    ls:create-models 1 "WSP micro-sim.nlogo"
   ]
+  let xc pxcor
+  let yc pycor
+  let p patch-here
+  ls:let wcs [ (list (rel-xcor p) (rel-ycor p) heading) ] of wolves in-radius sheep-vision
+  ls:let scs [ (list (rel-xcor p) (rel-ycor p)  heading) ] of sheep in-radius sheep-vision
+  let grass-in-vision patches in-radius sheep-vision
+  ls:let lgcs [ list (rel-xcor p) (rel-ycor p) ] of grass-in-vision with [ pcolor = green ]
+  ls:let dgcs [ list (rel-xcor p) (rel-ycor p) ] of grass-in-vision with [ pcolor = brown ]
 
-  ls:let bound (sim-ticks + vision)
-  ls:let grt grass-regrowth-time
+  ls:let my-energy energy
+  ls:let my-xcor (xcor - pxcor)
+  ls:let my-ycor (ycor - pycor)
+  ls:let my-heading heading
+
   ls:let sgff sheep-gain-from-food
-  ls:let sr sheep-reproduce
-  ls:let sv sheep-vision
-  ls:let ssn sheep-sim-n
-  ls:let sst sheep-sim-ticks
-  ls:let ssd sheep-sim-depth - 1
   ls:let wgff wolf-gain-from-food
-  ls:let wr wolf-reproduce
-  ls:let wv wolf-vision
-  ls:let wsn wolf-sim-n
-  ls:let wst wolf-sim-ticks
-  ls:let wsd wolf-sim-depth - 1
+
+  ls:let my-breed (word breed)
+
+  ls:let v vision
+
   ls:ask 0 [
-    resize-world (- bound) bound (- bound) bound
-    set grass-regrowth-time grt
+    set wolf-coords wcs
+    set sheep-coords scs
+    set live-grass-coords lgcs
+    set dead-grass-coords dgcs
+    set ego-breed my-breed
+    set init-energy my-energy
+    set init-xcor my-xcor
+    set init-ycor my-ycor
+    set init-heading my-heading
     set sheep-gain-from-food sgff
-    set sheep-reproduce sr
-    set sheep-vision sv
-    set sheep-sim-n ssn
-    set sheep-sim-depth ssd
     set wolf-gain-from-food wgff
-    set wolf-reproduce wr
-    set wolf-vision wv
-    set wolf-sim-n wsn
-    set wolf-sim-depth wsd
+    set vision v
+    set grass-density length lgcs / (length dgcs + length lgcs)
+  ]
+end
+
+to-report rel-xcor [ other-agent ]
+  report ifelse-value (self = other-agent) [
+    0
+  ] [
+    0 - (sin towards other-agent) * distance other-agent
+  ]
+end
+
+to-report rel-ycor [ other-agent ]
+  report ifelse-value (self = other-agent) [
+    0
+  ] [
+    0 - (cos towards other-agent) * distance other-agent
   ]
 end
 
@@ -564,6 +518,28 @@ sheep-vision
 NIL
 HORIZONTAL
 
+INPUTBOX
+0
+250
+75
+310
+sheep-sim-n
+0.0
+1
+0
+Number
+
+INPUTBOX
+75
+250
+175
+310
+sheep-sim-l
+3.0
+1
+0
+Number
+
 SLIDER
 180
 215
@@ -573,44 +549,7 @@ wolf-vision
 wolf-vision
 0
 10
-0.0
-1
-1
-NIL
-HORIZONTAL
-
-INPUTBOX
-0
-250
-75
-310
-sheep-sim-n
-10.0
-1
-0
-Number
-
-INPUTBOX
-75
-250
-175
-310
-sheep-sim-ticks
-2.0
-1
-0
-Number
-
-SLIDER
-0
-310
-175
-343
-sheep-sim-depth
-sheep-sim-depth
-0
-5
-1.0
+5.0
 1
 1
 NIL
@@ -619,7 +558,7 @@ HORIZONTAL
 INPUTBOX
 180
 250
-255
+265
 310
 wolf-sim-n
 0.0
@@ -628,30 +567,15 @@ wolf-sim-n
 Number
 
 INPUTBOX
-255
+265
 250
 345
 310
-wolf-sim-ticks
-0.0
+wolf-sim-l
+3.0
 1
 0
 Number
-
-SLIDER
-180
-310
-345
-343
-wolf-sim-depth
-wolf-sim-depth
-0
-5
-0.0
-1
-1
-NIL
-HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
