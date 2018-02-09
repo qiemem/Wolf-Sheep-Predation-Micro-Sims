@@ -80,7 +80,7 @@ to setup
     set ycor init-ycor
     set heading init-heading
     set ego self
-    watch-me
+    ;watch-me
   ]
 
   foreach wolf-coords [ c ->
@@ -111,10 +111,12 @@ to go
     stop
   ]
   ask sheep [
+    grass-check
     move
     eat-grass
   ]
   ask wolves [
+    grass-check
     move
     eat-sheep
   ]
@@ -133,6 +135,16 @@ to go
     set energy 0
   ]
   tick
+end
+
+to grass-check
+  if pcolor = black [
+    ifelse random-float 1 < grass-density [
+      set pcolor green
+    ] [
+      set pcolor brown
+    ]
+  ]
 end
 
 to move
