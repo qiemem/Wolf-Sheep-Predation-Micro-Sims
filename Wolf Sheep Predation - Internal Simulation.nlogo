@@ -136,8 +136,10 @@ to setup-mind [ vision ]
   ls:let my-breed (word breed)
 
   ls:let v vision
+  ls:let rd reward-discount
 
   ls:ask 0 [
+    set reward-discount rd
     set wolf-coords wcs
     set sheep-coords scs
     set live-grass-coords lgcs
@@ -151,6 +153,7 @@ to setup-mind [ vision ]
     set wolf-gain-from-food wgff
     set vision v
     set grass-density length lgcs / (length dgcs + length lgcs)
+    setup
   ]
 end
 
@@ -371,10 +374,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-35
-90
-104
-123
+0
+95
+69
+128
 setup
 setup
 NIL
@@ -388,10 +391,10 @@ NIL
 1
 
 BUTTON
-110
-90
-185
-123
+75
+95
+150
+128
 go
 go
 T
@@ -468,10 +471,10 @@ Sheep settings
 0
 
 TEXTBOX
-193
-126
-306
-144
+180
+127
+293
+145
 Wolf settings
 11
 0.0
@@ -498,7 +501,7 @@ INPUTBOX
 75
 310
 sheep-sim-n
-20.0
+10.0
 1
 0
 Number
@@ -509,7 +512,7 @@ INPUTBOX
 175
 310
 sheep-sim-l
-5.0
+3.0
 1
 0
 Number
@@ -561,6 +564,21 @@ cog-rates?
 1
 1
 -1000
+
+SLIDER
+155
+95
+345
+128
+reward-discount
+reward-discount
+0
+1
+1.0
+0.1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?

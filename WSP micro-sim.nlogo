@@ -5,6 +5,7 @@ extensions [
 
 globals [
   first-move
+  reward
   energy
   ego
 
@@ -31,7 +32,7 @@ to-report run-micro-sims [ num-sims sim-length ]
     repeat sim-length [
       go
     ]
-    set results lput list first-move energy results
+    set results lput list first-move reward results
   ]
   report results
 end
@@ -42,6 +43,7 @@ to setup
   ]
   ct
   cp
+  set reward 0
 ;  ask patches [
 ;    ifelse random-float 1 < grass-density [
 ;      set pcolor green
@@ -110,6 +112,7 @@ to go
   if ego = nobody [
     stop
   ]
+  let last-energy energy
   ask sheep [
     grass-check
     move
@@ -132,8 +135,9 @@ to go
   ] [ die ] ; leaving the world; forget about them
 
   if ego = nobody [ ; ego is dead
-    set energy 0
+    set energy -1000
   ]
+  set reward reward + (energy - last-energy) * reward-discount ^ ticks
   tick
 end
 
@@ -182,11 +186,11 @@ end
 GRAPHICS-WINDOW
 210
 10
-231
-32
+243
+44
 -1
 -1
-13.0
+25.0
 1
 10
 1
@@ -207,9 +211,9 @@ ticks
 30.0
 
 SLIDER
-5
+0
 10
-205
+200
 43
 sheep-gain-from-food
 sheep-gain-from-food
@@ -222,9 +226,9 @@ NIL
 HORIZONTAL
 
 BUTTON
-5
+0
 80
-67
+62
 113
 NIL
 setup
@@ -239,9 +243,9 @@ NIL
 1
 
 BUTTON
-70
+65
 80
-135
+130
 113
 NIL
 go
@@ -256,10 +260,10 @@ NIL
 1
 
 MONITOR
-85
-115
-142
-160
+80
+165
+137
+210
 NIL
 energy
 17
@@ -267,10 +271,10 @@ energy
 11
 
 MONITOR
-5
-115
-82
-160
+0
+165
+77
+210
 NIL
 first-move
 17
@@ -278,9 +282,9 @@ first-move
 11
 
 SLIDER
-5
+0
 45
-187
+182
 78
 wolf-gain-from-food
 wolf-gain-from-food
@@ -288,6 +292,21 @@ wolf-gain-from-food
 100
 20.0
 1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+0
+120
+172
+153
+reward-discount
+reward-discount
+0
+1
+0.9
+0.1
 1
 NIL
 HORIZONTAL
