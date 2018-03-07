@@ -12,6 +12,7 @@ breed [ sheep a-sheep ]  ; sheep is its own plural, so we use "a-sheep" as the s
 breed [ wolves wolf ]
 turtles-own [
   energy
+  age
 ]       ; both wolves and sheep have energy
 patches-own [ countdown ]
 
@@ -66,6 +67,7 @@ to go
   ask patches [ grow-grass ]
   ; set grass count patches with [pcolor = green]
   update-stats
+  ask turtles [ set age age + 1 ]
   tick
 end
 
@@ -79,7 +81,7 @@ to move-smart [ vision n l ]
     set n random-poisson n
     set l random-poisson l
   ]
-  let results  ifelse-value (n <= 1 or l <= 0) [ [] ] [ simulate vision n l ]
+  let results  ifelse-value (vision <= 0 or n <= 1 or l <= 0) [ [] ] [ simulate vision n l ]
   ifelse empty? results [
     move-random
   ] [
@@ -115,6 +117,7 @@ end
 to setup-mind [ vision ]
   if empty? ls:models [
     ls:create-models 1 "WSP micro-sim.nlogo"
+    (ls:ask 0 [ s -> random-seed s ] one-of list (random -2147483648) (random 2147483647))
   ]
   let xc pxcor
   let yc pycor
@@ -186,14 +189,20 @@ end
 to reproduce-sheep  ; sheep procedure
   if random-float 100 < sheep-reproduce [  ; throw "dice" to see if you will reproduce
     set energy (energy / 2)                ; divide energy between parent and offspring
-    hatch 1 [ rt random-float 360 fd 1 ]   ; hatch an offspring and move it forward 1 step
+    hatch 1 [
+      rt random-float 360 fd 1
+      set age 0
+    ]   ; hatch an offspring and move it forward 1 step
   ]
 end
 
 to reproduce-wolves  ; wolf procedure
   if random-float 100 < wolf-reproduce [  ; throw "dice" to see if you will reproduce
     set energy (energy / 2)               ; divide energy between parent and offspring
-    hatch 1 [ rt random-float 360 fd 1 ]  ; hatch an offspring and move it forward 1 step
+    hatch 1 [
+      rt random-float 360 fd 1
+      set age 0
+    ]  ; hatch an offspring and move it forward 1 step
   ]
 end
 
@@ -211,7 +220,7 @@ to death  ; turtle procedure (i.e. both wolf nd sheep procedure)
 end
 
 to grow-grass  ; patch procedure
-  ; countdown on brown patches: if reach 0, grow some grass
+  ; countdown on brown patches:  if reach 0, grow some grass
   if pcolor = brown [
     ifelse countdown <= 0
       [ set pcolor green
@@ -242,9 +251,9 @@ end
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-365
+350
 10
-883
+868
 529
 -1
 -1
@@ -526,7 +535,7 @@ wolf-vision
 wolf-vision
 0
 10
-10.0
+5.0
 1
 1
 NIL
@@ -574,7 +583,7 @@ reward-discount
 reward-discount
 0
 1
-1.0
+0.7
 0.1
 1
 NIL
@@ -1008,7 +1017,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.2
+NetLogo 6.0.3-M3
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false
@@ -1152,6 +1161,155 @@ repeat 75 [ go ]
     </enumeratedValueSet>
     <enumeratedValueSet variable="grass-regrowth-time">
       <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cog-rates?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>count grass</metric>
+    <enumeratedValueSet variable="cog-rates?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-l">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-reproduce">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="sheep-vision" first="0" step="1" last="10"/>
+    <enumeratedValueSet variable="wolf-sim-n">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward-discount">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-reproduce">
+      <value value="4"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="wolf-vary-n-l" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>count grass</metric>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="10"/>
+    <steppedValueSet variable="wolf-sim-l" first="0" step="1" last="9"/>
+    <enumeratedValueSet variable="sheep-reproduce">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-reproduce">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward-discount">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cog-rates?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="wolf-vary-n-l-big" repetitions="25" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>count grass</metric>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="20"/>
+    <steppedValueSet variable="wolf-sim-l" first="0" step="1" last="19"/>
+    <enumeratedValueSet variable="sheep-reproduce">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-reproduce">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward-discount">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="0"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="cog-rates?">
       <value value="false"/>
