@@ -1,10 +1,14 @@
 extensions [ ls profiler ]
 
+__includes [ "actions.nls" ]
+
 
 globals [
   sheep-counts
   wolf-counts
   grass-counts
+  sheep-actions
+  wolf-actions
 ]
 
 ; Sheep and wolves are both breeds of turtle.
@@ -19,6 +23,16 @@ patches-own [ countdown ]
 to setup
   ls:reset
   ca
+  set sheep-actions [
+    "(move 1) + (eat-grass)"
+    "(turn 30) + (move 1) + (eat-grass)"
+    "(turn -30) + (move 1) + (eat-grass)"
+  ]
+  set wolf-actions [
+    "(move 1) + (eat-sheep)"
+    "(turn 30) + (move 1) + (eat-sheep)"
+    "(turn -30) + (move 1) + (eat-sheep)"
+  ]
   ask patches [
     set pcolor one-of [ green brown ]
     ifelse pcolor = green [
@@ -51,16 +65,12 @@ end
 
 to go
   ask sheep [
-    move-smart sheep-vision sheep-sim-n sheep-sim-l
-    set energy energy - 1  ; deduct energy for sheep only if running sheep-wolf-grass model version
-    eat-grass  ; sheep eat grass only if running sheep-wolf-grass model version
+    act sheep-vision sheep-sim-n sheep-sim-l sheep-actions
     death ; sheep die from starvation only if running sheep-wolf-grass model version=
     reproduce-sheep  ; sheep reproduce at random rate governed by slider
   ]
   ask wolves [
-    move-smart wolf-vision wolf-sim-n wolf-sim-l
-    set energy energy - 1  ; wolves lose energy as they move
-    eat-sheep ; wolves eat a sheep on their patch
+    act wolf-vision wolf-sim-n wolf-sim-l wolf-actions
     death ; wolves die if our of energy
     reproduce-wolves ; wolves reproduce at random rate governed by slider
   ]
@@ -71,22 +81,20 @@ to go
   tick
 end
 
-to move-random  ; turtle procedure
-  rt one-of [ -30 0 30 ]
-  fd 1
-end
-
-to move-smart [ vision n l ]
+to act [ vision num dur actions ]
   if cog-rates? [
-    set n random-poisson n
-    set l random-poisson l
+    set num random-poisson num
+    set dur random-poisson dur
   ]
-  let results  ifelse-value (vision <= 0 or n <= 1 or l <= 0) [ [] ] [ simulate vision n l ]
-  ifelse empty? results [
-    move-random
+  let results ifelse-value (vision <= 0 or num <= 1 or dur <= 0) [
+    []
   ] [
-    rt pick-best results
-    fd 1
+    simulate vision num dur
+  ]
+  ifelse empty? results [
+    set energy energy + runresult (one-of actions)
+  ] [
+    set energy energy + runresult (pick-best results)
   ]
 end
 
@@ -109,15 +117,16 @@ to-report safe-mean [ lst ]
   ]
 end
 
-to-report simulate [ vision num len ]
+to-report simulate [ vision num dur ]
   setup-mind vision
-  report (ls:report 0 [ [n l] -> run-micro-sims n l ] num len)
+  report (ls:report 0 [ [n d] -> run-micro-sims n d ] num dur)
 end
 
 to setup-mind [ vision ]
   if empty? ls:models [
     ls:create-models 1 "WSP micro-sim.nlogo"
-    (ls:ask 0 [ s -> random-seed s ] one-of list (random -2147483648) (random 2147483647))
+    ls:assign 0 wolf-actions wolf-actions
+    ls:assign 0 sheep-actions sheep-actions
   ]
   let xc pxcor
   let yc pycor
@@ -178,14 +187,6 @@ to-report rel-ycor [ other-agent ]
   ]
 end
 
-to eat-grass  ; sheep procedure
-  ; sheep eat grass, turn the patch brown
-  if pcolor = green [
-    set pcolor brown
-    set energy energy + sheep-gain-from-food  ; sheep gain energy by eating
-  ]
-end
-
 to reproduce-sheep  ; sheep procedure
   if random-float 100 < sheep-reproduce [  ; throw "dice" to see if you will reproduce
     set energy (energy / 2)                ; divide energy between parent and offspring
@@ -203,14 +204,6 @@ to reproduce-wolves  ; wolf procedure
       rt random-float 360 fd 1
       set age 0
     ]  ; hatch an offspring and move it forward 1 step
-  ]
-end
-
-to eat-sheep  ; wolf procedure
-  let prey one-of sheep-here                    ; grab a random sheep
-  if prey != nobody  [                          ; did we get one?  if so,
-    ask prey [ die ]                            ; kill it, and...
-    set energy energy + wolf-gain-from-food     ; get energy from eating
   ]
 end
 
@@ -376,7 +369,7 @@ grass-regrowth-time
 grass-regrowth-time
 0
 100
-30.0
+40.0
 1
 1
 NIL
@@ -510,7 +503,7 @@ INPUTBOX
 75
 310
 sheep-sim-n
-10.0
+5.0
 1
 0
 Number
@@ -547,7 +540,7 @@ INPUTBOX
 265
 310
 wolf-sim-n
-0.0
+5.0
 1
 0
 Number
@@ -558,7 +551,7 @@ INPUTBOX
 345
 310
 wolf-sim-l
-0.0
+3.0
 1
 0
 Number
@@ -583,11 +576,22 @@ reward-discount
 reward-discount
 0
 1
-0.7
+0.5
 0.1
 1
 NIL
 HORIZONTAL
+
+SWITCH
+50
+530
+197
+563
+move-and-eat?
+move-and-eat?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1017,7 +1021,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.3-M3
+NetLogo 6.0.3
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false

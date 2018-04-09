@@ -1,7 +1,4 @@
-extensions [
-  profiler
-]
-
+__includes [ "actions.nls" ]
 
 globals [
   first-move
@@ -9,6 +6,8 @@ globals [
   energy
   ego
 
+  wolf-actions
+  sheep-actions
   wolf-coords
   sheep-coords
   live-grass-coords
@@ -63,18 +62,19 @@ to setup
   set-default-shape sheep "sheep"
 
   set energy init-energy
-  set first-move one-of [ -30 0 30 ]
 
   ifelse ego-breed = "sheep" [
     create-sheep 1 [
       set color white
       set size 1.5
     ]
+    set first-move one-of sheep-actions
   ] [
     create-wolves 1 [
       set color black
       set size 2
     ]
+    set first-move one-of wolf-actions
   ]
 
   ask turtle 0 [
@@ -115,15 +115,12 @@ to go
   let last-energy energy
   ask sheep [
     grass-check
-    move
-    eat-grass
+    act sheep-actions
   ]
   ask wolves [
     grass-check
-    move
-    eat-sheep
+    act wolf-actions
   ]
-  set energy energy - 1
   ask turtle-set ego [
     death
   ]
@@ -151,31 +148,15 @@ to grass-check
   ]
 end
 
-to move
-  ifelse self = ego and ticks = 0 [
-    rt first-move
+to act [ actions ]
+  ifelse self = ego [
+    ifelse ticks = 0 [
+      set energy energy + runresult first-move
+    ] [
+      set energy energy + runresult one-of actions
+    ]
   ] [
-    rt one-of [-30 0 30]
-  ]
-  fd 1
-end
-
-to eat-grass
-  if pcolor = green [
-    set pcolor brown
-    if self = ego [
-      set energy energy + sheep-gain-from-food
-    ]
-  ]
-end
-
-to eat-sheep
-  let prey one-of sheep-here
-  if prey != nobody [
-    ask prey [ die ]
-    if self = ego [
-      set energy energy + wolf-gain-from-food
-    ]
+    __ignore runresult one-of actions
   ]
 end
 
@@ -213,7 +194,7 @@ ticks
 SLIDER
 0
 10
-200
+185
 43
 sheep-gain-from-food
 sheep-gain-from-food
@@ -261,9 +242,9 @@ NIL
 
 MONITOR
 80
-165
+150
 137
-210
+195
 NIL
 energy
 17
@@ -272,9 +253,9 @@ energy
 
 MONITOR
 0
-165
+150
 77
-210
+195
 NIL
 first-move
 17
@@ -284,7 +265,7 @@ first-move
 SLIDER
 0
 45
-182
+185
 78
 wolf-gain-from-food
 wolf-gain-from-food
@@ -298,9 +279,9 @@ HORIZONTAL
 
 SLIDER
 0
-120
+115
 172
-153
+148
 reward-discount
 reward-discount
 0
@@ -653,7 +634,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.2
+NetLogo 6.0.3
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
