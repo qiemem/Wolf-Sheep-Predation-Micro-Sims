@@ -17,6 +17,7 @@ breed [ wolves wolf ]
 turtles-own [
   energy
   age
+  smart?
 ]       ; both wolves and sheep have energy
 patches-own [ countdown ]
 
@@ -48,6 +49,7 @@ to setup
     set color black
     set size 2
     set energy random (2 * wolf-gain-from-food)
+    set smart? false
   ]
   create-sheep initial-number-sheep [
     setxy random-xcor random-ycor
@@ -55,6 +57,13 @@ to setup
     set color white
     set size 1.5
     set energy random (2 * sheep-gain-from-food)
+    set smart? false
+  ]
+  ask fraction-of fraction-smart-sheep sheep [
+    set smart? true
+  ]
+  ask fraction-of fraction-smart-wolves wolves [
+    set smart? true
   ]
   set sheep-counts []
   set wolf-counts []
@@ -65,12 +74,20 @@ end
 
 to go
   ask sheep [
-    act sheep-vision sheep-sim-n sheep-sim-l sheep-actions
+    ifelse smart? [
+      act sheep-vision sheep-sim-n sheep-sim-l sheep-actions
+    ] [
+      act-random sheep-actions
+    ]
     death ; sheep die from starvation only if running sheep-wolf-grass model version=
     reproduce-sheep  ; sheep reproduce at random rate governed by slider
   ]
   ask wolves [
-    act wolf-vision wolf-sim-n wolf-sim-l wolf-actions
+    ifelse smart? [
+      act wolf-vision wolf-sim-n wolf-sim-l wolf-actions
+    ] [
+      act-random wolf-actions
+    ]
     death ; wolves die if our of energy
     reproduce-wolves ; wolves reproduce at random rate governed by slider
   ]
@@ -92,10 +109,14 @@ to act [ vision num dur actions ]
     simulate vision num dur
   ]
   ifelse empty? results [
-    set energy energy + runresult (one-of actions)
+    act-random actions
   ] [
     set energy energy + runresult (pick-best results)
   ]
+end
+
+to act-random [ actions ]
+  set energy energy + runresult (one-of actions)
 end
 
 to-report pick-best [ results ]
@@ -239,6 +260,26 @@ to-report sheep-stability [ n ]
   report abs ((mean sublist sheep-counts 0 n) / (mean sublist sheep-counts n (2 * n)) - 1)
 end
 
+to-report fraction-of [ ratio agents ]
+  report n-of (ratio * count agents) agents
+end
+
+to-report smart-sheep
+  report sheep with [ smart? ]
+end
+
+to-report smart-wolves
+  report wolves with [ smart? ]
+end
+
+to-report random-sheep
+  report sheep with [ not smart? ]
+end
+
+to-report random-wolves
+  report wolves with [ not smart? ]
+end
+
 
 ; Copyright 1997 Uri Wilensky.
 ; See Info tab for full copyright and license.
@@ -273,7 +314,7 @@ ticks
 SLIDER
 0
 10
-174
+175
 43
 initial-number-sheep
 initial-number-sheep
@@ -287,9 +328,9 @@ HORIZONTAL
 
 SLIDER
 0
-146
 175
-179
+175
+208
 sheep-gain-from-food
 sheep-gain-from-food
 0.0
@@ -302,9 +343,9 @@ HORIZONTAL
 
 SLIDER
 0
-180
+209
 175
-213
+242
 sheep-reproduce
 sheep-reproduce
 1.0
@@ -332,9 +373,9 @@ HORIZONTAL
 
 SLIDER
 180
-145
+174
 345
-178
+207
 wolf-gain-from-food
 wolf-gain-from-food
 0.0
@@ -347,9 +388,9 @@ HORIZONTAL
 
 SLIDER
 180
-180
+209
 345
-213
+242
 wolf-reproduce
 wolf-reproduce
 0.0
@@ -362,14 +403,14 @@ HORIZONTAL
 
 SLIDER
 35
-50
+79
 247
-83
+112
 grass-regrowth-time
 grass-regrowth-time
 0
 100
-40.0
+38.0
 1
 1
 NIL
@@ -377,9 +418,9 @@ HORIZONTAL
 
 BUTTON
 0
-95
+124
 69
-128
+157
 setup
 setup
 NIL
@@ -394,9 +435,9 @@ NIL
 
 BUTTON
 75
-95
+124
 150
-128
+157
 go
 go
 T
@@ -411,9 +452,9 @@ NIL
 
 PLOT
 5
-360
+389
 345
-530
+559
 populations
 time
 pop.
@@ -425,15 +466,17 @@ true
 true
 "" ""
 PENS
-"sheep" 1.0 0 -612749 true "" "plot count sheep"
-"wolves" 1.0 0 -16449023 true "" "plot count wolves"
+"smart-sheep" 1.0 0 -13345367 true "" "plot count smart-sheep"
+"smart-wolves" 1.0 0 -2674135 true "" "plot count smart-wolves"
 "grass / 4" 1.0 0 -10899396 true "" "plot count grass / 4"
+"random-sheep" 1.0 0 -8020277 true "" "plot count random-sheep"
+"random-wolves" 1.0 0 -1604481 true "" "plot count random-wolves"
 
 MONITOR
 130
-315
+344
 200
-360
+389
 sheep
 count sheep
 3
@@ -442,9 +485,9 @@ count sheep
 
 MONITOR
 204
-315
+344
 274
-360
+389
 wolves
 count wolves
 3
@@ -453,9 +496,9 @@ count wolves
 
 MONITOR
 280
-315
+344
 345
-360
+389
 grass
 count grass / 4
 0
@@ -464,9 +507,9 @@ count grass / 4
 
 TEXTBOX
 15
-128
+157
 155
-146
+175
 Sheep settings
 11
 0.0
@@ -474,9 +517,9 @@ Sheep settings
 
 TEXTBOX
 180
-127
+156
 293
-145
+174
 Wolf settings
 11
 0.0
@@ -484,9 +527,9 @@ Wolf settings
 
 SLIDER
 0
-215
+244
 175
-248
+277
 sheep-vision
 sheep-vision
 0
@@ -499,20 +542,20 @@ HORIZONTAL
 
 INPUTBOX
 0
-250
+279
 75
-310
+339
 sheep-sim-n
-5.0
+10.0
 1
 0
 Number
 
 INPUTBOX
 75
-250
+279
 175
-310
+339
 sheep-sim-l
 3.0
 1
@@ -521,9 +564,9 @@ Number
 
 SLIDER
 180
-215
+244
 345
-248
+277
 wolf-vision
 wolf-vision
 0
@@ -536,9 +579,9 @@ HORIZONTAL
 
 INPUTBOX
 180
-250
+279
 265
-310
+339
 wolf-sim-n
 5.0
 1
@@ -547,9 +590,9 @@ Number
 
 INPUTBOX
 265
-250
+279
 345
-310
+339
 wolf-sim-l
 3.0
 1
@@ -558,9 +601,9 @@ Number
 
 SWITCH
 5
-320
+349
 127
-353
+382
 cog-rates?
 cog-rates?
 1
@@ -569,9 +612,9 @@ cog-rates?
 
 SLIDER
 155
-95
+124
 345
-128
+157
 reward-discount
 reward-discount
 0
@@ -584,14 +627,44 @@ HORIZONTAL
 
 SWITCH
 50
-530
+559
 197
-563
+592
 move-and-eat?
 move-and-eat?
 1
 1
 -1000
+
+SLIDER
+0
+45
+175
+78
+fraction-smart-sheep
+fraction-smart-sheep
+0
+1
+0.5
+.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+180
+45
+345
+78
+fraction-smart-wolves
+fraction-smart-wolves
+0
+1
+0.0
+0.01
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1314,6 +1387,130 @@ repeat 75 [ go ]
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-sim-n">
       <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cog-rates?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="versus-sheep" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>not any? smart-sheep
+or not any? random-sheep</exitCondition>
+    <metric>count smart-sheep</metric>
+    <metric>count smart-wolves</metric>
+    <metric>count grass</metric>
+    <metric>count random-sheep</metric>
+    <metric>count random-wolves</metric>
+    <steppedValueSet variable="sheep-sim-n" first="1" step="1" last="10"/>
+    <steppedValueSet variable="sheep-sim-l" first="0" step="1" last="5"/>
+    <enumeratedValueSet variable="wolf-sim-n">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-l">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fraction-smart-wolves">
+      <value value="0"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fraction-smart-sheep">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-reproduce">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="move-and-eat?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-reproduce">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward-discount">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="cog-rates?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="versus-wolves" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <exitCondition>not any? smart-sheep
+or not any? random-sheep</exitCondition>
+    <metric>count smart-sheep</metric>
+    <metric>count smart-wolves</metric>
+    <metric>count grass</metric>
+    <metric>count random-sheep</metric>
+    <metric>count random-wolves</metric>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="10"/>
+    <steppedValueSet variable="wolf-sim-l" first="0" step="1" last="5"/>
+    <enumeratedValueSet variable="fraction-smart-sheep">
+      <value value="0"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="fraction-smart-wolves">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-reproduce">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="move-and-eat?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="20"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-reproduce">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="reward-discount">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="cog-rates?">
       <value value="false"/>
