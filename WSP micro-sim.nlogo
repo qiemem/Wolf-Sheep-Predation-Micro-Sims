@@ -105,6 +105,7 @@ to setup
     ]
   ]
 
+  if narrate? [ print "setup" ]
   reset-ticks
 end
 
@@ -132,6 +133,7 @@ to go
   ] [ die ] ; leaving the world; forget about them
 
   if ego = nobody [ ; ego is dead
+    if narrate? [ print "died" ]
     set energy -1000
   ]
   set reward reward + (energy - last-energy) * reward-discount ^ ticks
@@ -150,18 +152,24 @@ end
 
 to act [ actions ]
   ifelse self = ego [
+    let m 0
     ifelse ticks = 0 [
-      set energy energy + runresult first-move
+      set m first-move
     ] [
-      set energy energy + runresult one-of actions
+      set m one-of actions
     ]
+    let res runresult m
+    if narrate? [ print (word m ": " res) ]
+    set energy energy + res
   ] [
     __ignore runresult one-of actions
   ]
 end
 
 to death
-  if energy < 0 [ die ]
+  if energy < 0 [
+    die
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -291,6 +299,17 @@ reward-discount
 1
 NIL
 HORIZONTAL
+
+SWITCH
+5
+205
+112
+238
+narrate?
+narrate?
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?

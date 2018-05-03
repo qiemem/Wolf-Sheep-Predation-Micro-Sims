@@ -148,6 +148,7 @@ to setup-mind [ vision ]
     ls:create-models 1 "WSP micro-sim.nlogo"
     ls:assign 0 wolf-actions wolf-actions
     ls:assign 0 sheep-actions sheep-actions
+    ls:assign 0 narrate? false
   ]
   let xc pxcor
   let yc pycor
@@ -212,7 +213,7 @@ to reproduce-sheep  ; sheep procedure
   if random-float 100 < sheep-reproduce [  ; throw "dice" to see if you will reproduce
     set energy (energy / 2)                ; divide energy between parent and offspring
     hatch 1 [
-      rt random-float 360 fd 1
+      rt random 360 fd 1
       set age 0
     ]   ; hatch an offspring and move it forward 1 step
   ]
@@ -222,7 +223,7 @@ to reproduce-wolves  ; wolf procedure
   if random-float 100 < wolf-reproduce [  ; throw "dice" to see if you will reproduce
     set energy (energy / 2)               ; divide energy between parent and offspring
     hatch 1 [
-      rt random-float 360 fd 1
+      rt random 360 fd 1
       set age 0
     ]  ; hatch an offspring and move it forward 1 step
   ]
@@ -280,6 +281,35 @@ to-report random-wolves
   report wolves with [ not smart? ]
 end
 
+to record-micro-sims
+  let vision sheep-vision
+  let n sheep-sim-n
+  let l sheep-sim-l
+  let actions sheep-actions
+  if is-wolf? self [
+    set vision wolf-vision
+    set n wolf-sim-n
+    set l wolf-sim-l
+    set actions wolf-actions
+  ]
+  ls:let id who
+  ls:let n n
+  ls:let l l
+  setup-mind vision
+  ls:ask 0 [
+
+    foreach range n [ r ->
+      setup
+      watch ego
+      export-view (word id "-" r "-0.png")
+      repeat l [
+        go
+        export-view (word id "-" r "-" ticks ".png")
+      ]
+    ]
+  ]
+end
+
 
 ; Copyright 1997 Uri Wilensky.
 ; See Info tab for full copyright and license.
@@ -327,9 +357,9 @@ NIL
 HORIZONTAL
 
 SLIDER
-0
+-5
 175
-175
+170
 208
 sheep-gain-from-food
 sheep-gain-from-food
@@ -342,9 +372,9 @@ NIL
 HORIZONTAL
 
 SLIDER
-0
+-5
 209
-175
+170
 242
 sheep-reproduce
 sheep-reproduce
@@ -372,9 +402,9 @@ NIL
 HORIZONTAL
 
 SLIDER
-180
+175
 174
-345
+340
 207
 wolf-gain-from-food
 wolf-gain-from-food
@@ -387,9 +417,9 @@ NIL
 HORIZONTAL
 
 SLIDER
-180
+175
 209
-345
+340
 242
 wolf-reproduce
 wolf-reproduce
@@ -402,15 +432,15 @@ wolf-reproduce
 HORIZONTAL
 
 SLIDER
-35
+30
 79
-247
+242
 112
 grass-regrowth-time
 grass-regrowth-time
 0
 100
-38.0
+30.0
 1
 1
 NIL
@@ -434,9 +464,9 @@ NIL
 1
 
 BUTTON
-75
+70
 124
-150
+145
 157
 go
 go
@@ -451,10 +481,10 @@ NIL
 0
 
 PLOT
-5
-389
+0
+390
 345
-559
+560
 populations
 time
 pop.
@@ -473,9 +503,9 @@ PENS
 "random-wolves" 1.0 0 -1604481 true "" "plot count random-wolves"
 
 MONITOR
-130
+125
 344
-200
+195
 389
 sheep
 count sheep
@@ -484,9 +514,9 @@ count sheep
 11
 
 MONITOR
-204
+199
 344
-274
+269
 389
 wolves
 count wolves
@@ -506,9 +536,9 @@ count grass / 4
 11
 
 TEXTBOX
-15
+10
 157
-155
+150
 175
 Sheep settings
 11
@@ -516,9 +546,9 @@ Sheep settings
 0
 
 TEXTBOX
-180
+175
 156
-293
+288
 174
 Wolf settings
 11
@@ -526,9 +556,9 @@ Wolf settings
 0
 
 SLIDER
-0
+-5
 244
-175
+170
 277
 sheep-vision
 sheep-vision
@@ -546,7 +576,7 @@ INPUTBOX
 75
 339
 sheep-sim-n
-10.0
+5.0
 1
 0
 Number
@@ -554,7 +584,7 @@ Number
 INPUTBOX
 75
 279
-175
+170
 339
 sheep-sim-l
 3.0
@@ -563,9 +593,9 @@ sheep-sim-l
 Number
 
 SLIDER
-180
+175
 244
-345
+340
 277
 wolf-vision
 wolf-vision
@@ -578,31 +608,31 @@ NIL
 HORIZONTAL
 
 INPUTBOX
-180
+175
 279
-265
+260
 339
 wolf-sim-n
-5.0
+0.0
 1
 0
 Number
 
 INPUTBOX
-265
+260
 279
-345
+340
 339
 wolf-sim-l
-3.0
+0.0
 1
 0
 Number
 
 SWITCH
-5
+0
 349
-127
+122
 382
 cog-rates?
 cog-rates?
@@ -611,30 +641,19 @@ cog-rates?
 -1000
 
 SLIDER
-155
+150
 124
-345
+340
 157
 reward-discount
 reward-discount
 0
 1
-0.5
+0.9
 0.1
 1
 NIL
 HORIZONTAL
-
-SWITCH
-50
-559
-197
-592
-move-and-eat?
-move-and-eat?
-1
-1
--1000
 
 SLIDER
 0
@@ -645,7 +664,7 @@ fraction-smart-sheep
 fraction-smart-sheep
 0
 1
-0.5
+1.0
 .01
 1
 NIL
@@ -660,7 +679,7 @@ fraction-smart-wolves
 fraction-smart-wolves
 0
 1
-0.0
+1.0
 0.01
 1
 NIL
@@ -1426,9 +1445,6 @@ or not any? random-sheep</exitCondition>
     <enumeratedValueSet variable="sheep-reproduce">
       <value value="4"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="move-and-eat?">
-      <value value="false"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="wolf-gain-from-food">
       <value value="20"/>
     </enumeratedValueSet>
@@ -1457,8 +1473,8 @@ or not any? random-sheep</exitCondition>
   <experiment name="versus-wolves" repetitions="10" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <exitCondition>not any? smart-sheep
-or not any? random-sheep</exitCondition>
+    <exitCondition>not any? smart-wolves
+or not any? random-wolves</exitCondition>
     <metric>count smart-sheep</metric>
     <metric>count smart-wolves</metric>
     <metric>count grass</metric>
@@ -1487,9 +1503,6 @@ or not any? random-sheep</exitCondition>
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-reproduce">
       <value value="4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="move-and-eat?">
-      <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="wolf-gain-from-food">
       <value value="20"/>
