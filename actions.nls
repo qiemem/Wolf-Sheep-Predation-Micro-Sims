@@ -10,7 +10,7 @@ end
 
 to-report eat-grass
   if pcolor = green [
-    set pcolor brown
+    grass-get-eaten
     report sheep-gain-from-food
   ]
   report 0
@@ -19,7 +19,7 @@ end
 to-report eat-sheep  ; wolf procedure
   let prey one-of sheep-here
   if prey != nobody  [
-    ask prey [ die ]
+    ask prey [ sheep-get-eaten ]
     report wolf-gain-from-food
   ]
   report 0

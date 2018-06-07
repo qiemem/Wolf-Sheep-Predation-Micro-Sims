@@ -171,6 +171,14 @@ to death
     die
   ]
 end
+
+to grass-get-eaten
+  set pcolor brown
+end
+
+to sheep-get-eaten
+  die
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 210
