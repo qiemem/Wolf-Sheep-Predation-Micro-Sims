@@ -172,7 +172,7 @@ end
 
 to setup-mind [ vision ]
   if empty? ls:models [
-    ls:create-models 1 "WSP micro-sim.nlogo"
+    ls:create-models 1 "wsp-cog-model.nlogo"
     ls:assign 0 wolf-actions wolf-actions
     ls:assign 0 sheep-actions sheep-actions
     ls:assign 0 narrate? false
@@ -603,7 +603,7 @@ INPUTBOX
 75
 339
 sheep-sim-n
-0.0
+3.0
 1
 0
 Number
@@ -614,7 +614,7 @@ INPUTBOX
 170
 339
 sheep-sim-l
-0.0
+2.0
 1
 0
 Number
@@ -640,7 +640,7 @@ INPUTBOX
 260
 339
 wolf-sim-n
-100.0
+5.0
 1
 0
 Number
@@ -651,7 +651,7 @@ INPUTBOX
 340
 339
 wolf-sim-l
-4.0
+3.0
 1
 0
 Number
@@ -1178,7 +1178,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.3
+NetLogo 6.0.4
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false
