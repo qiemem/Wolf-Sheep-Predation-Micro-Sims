@@ -19,8 +19,9 @@ end
 to-report eat-sheep  ; wolf procedure
   let prey one-of sheep-here
   if prey != nobody  [
+    let gain [ energy ] of prey
     ask prey [ sheep-get-eaten ]
-    report wolf-gain-from-food
+    report gain
   ]
   report 0
 end

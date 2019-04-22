@@ -26,8 +26,8 @@ breed [ wolves wolf ]
 
 to-report run-micro-sims [ num-sims sim-length ]
   let results []
-  repeat num-sims [
-    setup
+  foreach range num-sims [ i ->
+    setup i
     repeat sim-length [
       go
     ]
@@ -36,7 +36,7 @@ to-report run-micro-sims [ num-sims sim-length ]
   report results
 end
 
-to setup
+to setup [ run-num ]
   if max-pxcor != vision * 2 [
     resize-world (- vision * 2) (vision * 2) (- vision * 2) (vision * 2)
   ]
@@ -58,22 +58,22 @@ to setup
     ask patch first c last c [ set pcolor brown ]
   ]
 
-  set-default-shape wolves "wolf"
-  set-default-shape sheep "sheep"
+;  set-default-shape wolves "wolf"
+;  set-default-shape sheep "sheep"
 
   set energy init-energy
 
   ifelse ego-breed = "sheep" [
     create-sheep 1 [
       set color white
-      set size 1.5
     ]
+;    set first-move item (run-num mod length sheep-actions) sheep-actions
     set first-move one-of sheep-actions
   ] [
     create-wolves 1 [
       set color black
-      set size 2
     ]
+;    set first-move item (run-num mod length sheep-actions) wolf-actions
     set first-move one-of wolf-actions
   ]
 
@@ -661,7 +661,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.3
+NetLogo 6.1.0-RC2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

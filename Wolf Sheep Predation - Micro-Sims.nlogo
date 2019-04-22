@@ -22,8 +22,7 @@ breed [ sheep a-sheep ]  ; sheep is its own plural, so we use "a-sheep" as the s
 breed [ wolves wolf ]
 turtles-own [
   energy
-  age
-  smart?
+  chosen-move
 ]       ; both wolves and sheep have energy
 patches-own [ countdown ]
 
@@ -54,27 +53,21 @@ to setup
     setxy random-xcor random-ycor
     set color black
     set size 2
-    set energy random (2 * wolf-gain-from-food)
-    set smart? false
+    set energy wolf-threshold / 2 + random (wolf-threshold / 2)
   ]
   create-sheep initial-number-sheep [
     setxy random-xcor random-ycor
     set shape "sheep"
     set color white
     set size 1.5
-    set energy random (2 * sheep-gain-from-food)
-    set smart? false
-  ]
-  ask fraction-of fraction-smart-sheep sheep [
-    set smart? true
-  ]
-  ask fraction-of fraction-smart-wolves wolves [
-    set smart? true
+    set energy sheep-threshold / 2 + random (sheep-threshold / 2)
   ]
   set sheep-counts []
   set wolf-counts []
   set grass-counts []
   update-stats
+  set smoothed-sheep-efficiency 0.95
+  set smoothed-wolf-efficiency 0.75
   reset-ticks
 end
 
@@ -82,27 +75,26 @@ to go
   set sheep-efficiency 0
   set wolf-efficiency 0
   ask sheep [
-    ifelse smart? [
-      act sheep-vision sheep-sim-n sheep-sim-l sheep-actions
-    ] [
-      act-random sheep-actions
-    ]
-    death ; sheep die from starvation only if running sheep-wolf-grass model version=
-    reproduce-sheep  ; sheep reproduce at random rate governed by slider
+    let results simulate sheep-vision sheep-sim-n sheep-sim-l
+    set chosen-move ifelse-value empty? results [ one-of sheep-actions ] [ pick-best results ]
   ]
   ask wolves [
-    ifelse smart? [
-      act wolf-vision wolf-sim-n wolf-sim-l wolf-actions
-    ] [
-      act-random wolf-actions
-    ]
+    let results simulate wolf-vision wolf-sim-n wolf-sim-l
+    set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
+  ]
+  ask sheep [
+    act chosen-move
+    death ; sheep die from starvation only if running sheep-wolf-grass model version=
+    if energy > sheep-threshold [ reproduce ]
+  ]
+  ask wolves [
+    act chosen-move
     death ; wolves die if our of energy
-    reproduce-wolves ; wolves reproduce at random rate governed by slider
+    if energy > wolf-threshold [ reproduce ]
   ]
   ask patches [ grow-grass ]
   ; set grass count patches with [pcolor = green]
   update-stats
-  ask turtles [ set age age + 1 ]
   set smoothed-sheep-efficiency 0.99 * smoothed-sheep-efficiency + 0.01 * sheep-efficiency
   set smoothed-wolf-efficiency 0.99 * smoothed-wolf-efficiency + 0.01 * wolf-efficiency
   tick
@@ -120,21 +112,8 @@ to sheep-get-eaten
   die
 end
 
-to act [ vision num dur actions ]
-  if cog-rates? [
-    set num random-poisson num
-    set dur random-poisson dur
-  ]
-  let results ifelse-value (vision <= 0 or num <= 1 or dur <= 0) [
-    []
-  ] [
-    simulate vision num dur
-  ]
-  ifelse empty? results [
-    act-random actions
-  ] [
-    set energy energy + runresult (pick-best results)
-  ]
+to act [ action ]
+  set energy energy + runresult action
 end
 
 to act-random [ actions ]
@@ -166,8 +145,12 @@ to-report safe-div [ num den ]
 end
 
 to-report simulate [ vision num dur ]
-  setup-mind vision
-  report (ls:report 0 [ [n d] -> run-micro-sims n d ] num dur)
+  ifelse num > 1 and dur > 0 [
+    setup-mind vision
+    report (ls:report 0 [ [n d] -> run-micro-sims n d ] num dur)
+  ] [
+    report []
+  ]
 end
 
 to setup-mind [ vision ]
@@ -180,7 +163,11 @@ to setup-mind [ vision ]
   let xc pxcor
   let yc pycor
   let p patch-here
-  ls:let wcs [ (list (rel-xcor p) (rel-ycor p) heading) ] of wolves in-radius vision
+  ls:let wcs ifelse-value breed = wolves [
+    [ (list (rel-xcor p) (rel-ycor p) heading) ] of wolves in-radius vision
+  ] [
+    []
+  ]
   ls:let scs [ (list (rel-xcor p) (rel-ycor p)  heading) ] of sheep in-radius vision
   let grass-in-vision patches in-radius vision
   ls:let lgcs [ list (rel-xcor p) (rel-ycor p) ] of grass-in-vision with [ pcolor = green ]
@@ -192,15 +179,13 @@ to setup-mind [ vision ]
   ls:let my-heading heading
 
   ls:let sgff sheep-gain-from-food
-  ls:let wgff wolf-gain-from-food
 
   ls:let my-breed (word breed)
 
   ls:let v vision
-  ls:let rd reward-discount
 
   ls:ask 0 [
-    set reward-discount rd
+    set reward-discount 0.8
     set wolf-coords wcs
     set sheep-coords scs
     set live-grass-coords lgcs
@@ -211,10 +196,9 @@ to setup-mind [ vision ]
     set init-ycor my-ycor
     set init-heading my-heading
     set sheep-gain-from-food sgff
-    set wolf-gain-from-food wgff
     set vision v
     set grass-density length lgcs / (length dgcs + length lgcs)
-    setup
+;    setup 0
   ]
 end
 
@@ -236,23 +220,11 @@ to-report rel-ycor [ other-agent ]
   ]
 end
 
-to reproduce-sheep  ; sheep procedure
-  if random-float 100 < sheep-reproduce [  ; throw "dice" to see if you will reproduce
-    set energy (energy / 2)                ; divide energy between parent and offspring
-    hatch 1 [
-      rt random 360 fd 1
-      set age 0
-    ]   ; hatch an offspring and move it forward 1 step
-  ]
-end
-
-to reproduce-wolves  ; wolf procedure
-  if random-float 100 < wolf-reproduce [  ; throw "dice" to see if you will reproduce
-    set energy (energy / 2)               ; divide energy between parent and offspring
-    hatch 1 [
-      rt random 360 fd 1
-      set age 0
-    ]  ; hatch an offspring and move it forward 1 step
+to reproduce
+  set energy energy / 2
+  hatch 1 [
+    rt random 360
+    fd 1
   ]
 end
 
@@ -292,22 +264,6 @@ to-report fraction-of [ ratio agents ]
   report n-of (ratio * count agents) agents
 end
 
-to-report smart-sheep
-  report sheep with [ smart? ]
-end
-
-to-report smart-wolves
-  report wolves with [ smart? ]
-end
-
-to-report random-sheep
-  report sheep with [ not smart? ]
-end
-
-to-report random-wolves
-  report wolves with [ not smart? ]
-end
-
 to record-micro-sims
   let vision sheep-vision
   let n sheep-sim-n
@@ -326,7 +282,7 @@ to record-micro-sims
   ls:ask 0 [
 
     foreach range n [ r ->
-      setup
+      setup r
       watch ego
       export-view (word id "-" r "-0.png")
       repeat l [
@@ -342,13 +298,13 @@ end
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-650
+365
 10
-1168
-529
+934
+580
 -1
 -1
-10.0
+11.0
 1
 14
 1
@@ -369,100 +325,55 @@ ticks
 30.0
 
 SLIDER
-0
 10
-175
+10
+185
 43
 initial-number-sheep
 initial-number-sheep
 0
 250
-100.0
+150.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
--5
-175
-170
-208
-sheep-gain-from-food
-sheep-gain-from-food
-0.0
-50.0
-4.0
-1.0
-1
-NIL
-HORIZONTAL
-
-SLIDER
--5
-209
-170
-242
-sheep-reproduce
-sheep-reproduce
-1.0
-20.0
-4.0
-1.0
-1
-%
-HORIZONTAL
-
-SLIDER
-180
 10
-345
-43
-initial-number-wolves
-initial-number-wolves
-0
-250
+80
+185
+113
+sheep-gain-from-food
+sheep-gain-from-food
+0.0
 50.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-175
-174
-340
-207
-wolf-gain-from-food
-wolf-gain-from-food
-0.0
-100.0
-20.0
-1.0
-1
-NIL
-HORIZONTAL
-
-SLIDER
-175
-209
-340
-242
-wolf-reproduce
-wolf-reproduce
-0.0
-20.0
 5.0
 1.0
 1
-%
+NIL
 HORIZONTAL
 
 SLIDER
-30
-79
-242
-112
+185
+10
+360
+43
+initial-number-wolves
+initial-number-wolves
+0
+250
+50.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+185
+45
+360
+78
 grass-regrowth-time
 grass-regrowth-time
 0
@@ -474,10 +385,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-0
-124
-69
-157
+10
+45
+79
+78
 setup
 setup
 NIL
@@ -491,10 +402,10 @@ NIL
 1
 
 BUTTON
-70
-124
-145
-157
+80
+45
+155
+78
 go
 go
 T
@@ -508,10 +419,10 @@ NIL
 0
 
 PLOT
--5
-385
-340
-555
+10
+255
+360
+425
 populations
 time
 pop.
@@ -523,17 +434,15 @@ true
 true
 "" ""
 PENS
-"smart-sheep" 1.0 0 -13345367 true "" "plot count smart-sheep"
-"smart-wolves" 1.0 0 -2674135 true "" "plot count smart-wolves"
+"sheep" 1.0 0 -13345367 true "" "plot count sheep"
+"wolves" 1.0 0 -2674135 true "" "plot count wolves"
 "grass / 4" 1.0 0 -10899396 true "" "plot count grass / 4"
-"random-sheep" 1.0 0 -8020277 true "" "plot count random-sheep"
-"random-wolves" 1.0 0 -1604481 true "" "plot count random-wolves"
 
 MONITOR
-120
-339
-190
-384
+285
+325
+355
+370
 sheep
 count sheep
 3
@@ -541,52 +450,21 @@ count sheep
 11
 
 MONITOR
-194
-339
-264
-384
+285
+370
+355
+415
 wolves
 count wolves
 3
 1
 11
 
-MONITOR
-275
-339
-340
-384
-grass
-count grass / 4
-0
-1
-11
-
-TEXTBOX
-10
-157
-150
-175
-Sheep settings
-11
-0.0
-0
-
-TEXTBOX
-175
-156
-288
-174
-Wolf settings
-11
-0.0
-0
-
 SLIDER
--5
-244
-170
-277
+10
+150
+185
+183
 sheep-vision
 sheep-vision
 0
@@ -597,33 +475,11 @@ sheep-vision
 NIL
 HORIZONTAL
 
-INPUTBOX
-0
-279
-75
-339
-sheep-sim-n
-3.0
-1
-0
-Number
-
-INPUTBOX
-75
-279
-170
-339
-sheep-sim-l
-2.0
-1
-0
-Number
-
 SLIDER
-175
-244
-340
-277
+185
+150
+360
+183
 wolf-vision
 wolf-vision
 0
@@ -634,108 +490,11 @@ wolf-vision
 NIL
 HORIZONTAL
 
-INPUTBOX
-175
-279
-260
-339
-wolf-sim-n
-5.0
-1
-0
-Number
-
-INPUTBOX
-260
-279
-340
-339
-wolf-sim-l
-3.0
-1
-0
-Number
-
-SWITCH
--5
-344
-117
-377
-cog-rates?
-cog-rates?
-1
-1
--1000
-
-SLIDER
-150
-124
-340
-157
-reward-discount
-reward-discount
-0
-1
-0.8
-0.1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-0
-45
-175
-78
-fraction-smart-sheep
-fraction-smart-sheep
-0
-1
-1.0
-.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-180
-45
-345
-78
-fraction-smart-wolves
-fraction-smart-wolves
-0
-1
-1.0
-0.01
-1
-NIL
-HORIZONTAL
-
 PLOT
-370
-45
-570
-195
-efficiency
-NIL
-NIL
-0.0
-10.0
-0.0
-1.0
-true
-false
-"" ""
-PENS
-"sheep-eaten" 1.0 0 -2674135 true "" "plot wolf-efficiency"
-"grass-eaten" 1.0 0 -13345367 true "" "plot sheep-efficiency"
-
-PLOT
-370
-205
-570
-355
+10
+425
+360
+575
 smoothed efficiency
 NIL
 NIL
@@ -744,11 +503,123 @@ NIL
 0.0
 1.0
 true
-false
+true
 "" ""
 PENS
-"default" 1.0 0 -2674135 true "" "plot smoothed-wolf-efficiency"
-"pen-1" 1.0 0 -13345367 true "" "plot smoothed-sheep-efficiency"
+"wolves" 1.0 0 -2674135 true "" "plot smoothed-wolf-efficiency"
+"sheep" 1.0 0 -13345367 true "" "plot smoothed-sheep-efficiency"
+
+MONITOR
+300
+480
+357
+525
+wolves
+smoothed-wolf-efficiency
+3
+1
+11
+
+MONITOR
+300
+525
+357
+570
+sheep
+smoothed-sheep-efficiency
+3
+1
+11
+
+SLIDER
+10
+115
+185
+148
+sheep-threshold
+sheep-threshold
+0
+200
+30.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+185
+115
+360
+148
+wolf-threshold
+wolf-threshold
+0
+200
+30.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+10
+185
+185
+218
+sheep-sim-n
+sheep-sim-n
+0
+50
+6.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+10
+220
+185
+253
+sheep-sim-l
+sheep-sim-l
+0
+sheep-vision
+3.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+185
+185
+360
+218
+wolf-sim-n
+wolf-sim-n
+0
+50
+6.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+185
+220
+360
+253
+wolf-sim-l
+wolf-sim-l
+0
+wolf-vision
+3.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1178,7 +1049,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.0.4
+NetLogo 6.1.0-RC2
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false
