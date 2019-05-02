@@ -53,14 +53,16 @@ to setup
     setxy random-xcor random-ycor
     set color black
     set size 2
-    set energy wolf-threshold / 2 + random (wolf-threshold / 2)
+    let b wolf-threshold / 2
+    set energy b + random b
   ]
   create-sheep initial-number-sheep [
     setxy random-xcor random-ycor
     set shape "sheep"
     set color white
     set size 1.5
-    set energy sheep-threshold / 2 + random (sheep-threshold / 2)
+    let b sheep-threshold / 2
+    set energy b + random b
   ]
   set sheep-counts []
   set wolf-counts []
@@ -300,11 +302,11 @@ end
 GRAPHICS-WINDOW
 365
 10
-934
-580
+883
+529
 -1
 -1
-11.0
+10.0
 1
 14
 1
@@ -500,14 +502,14 @@ NIL
 NIL
 0.0
 1.0
-0.0
+0.5
 1.0
 true
 true
 "" ""
 PENS
-"wolves" 1.0 0 -2674135 true "" "plot smoothed-wolf-efficiency"
 "sheep" 1.0 0 -13345367 true "" "plot smoothed-sheep-efficiency"
+"wolves" 1.0 0 -2674135 true "" "plot smoothed-wolf-efficiency"
 
 MONITOR
 300
@@ -555,7 +557,7 @@ wolf-threshold
 wolf-threshold
 0
 200
-30.0
+100.0
 1
 1
 NIL
@@ -570,7 +572,7 @@ sheep-sim-n
 sheep-sim-n
 0
 50
-6.0
+12.0
 1
 1
 NIL
@@ -600,7 +602,7 @@ wolf-sim-n
 wolf-sim-n
 0
 50
-6.0
+12.0
 1
 1
 NIL

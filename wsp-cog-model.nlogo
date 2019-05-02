@@ -208,9 +208,9 @@ ticks
 30.0
 
 SLIDER
-0
+9
 10
-185
+194
 43
 sheep-gain-from-food
 sheep-gain-from-food
@@ -223,12 +223,12 @@ NIL
 HORIZONTAL
 
 BUTTON
-0
-80
-62
-113
+9
+45
+96
+78
 NIL
-setup
+setup 0
 NIL
 1
 T
@@ -240,10 +240,10 @@ NIL
 1
 
 BUTTON
-65
-80
-130
-113
+99
+45
+164
+78
 NIL
 go
 T
@@ -257,10 +257,10 @@ NIL
 1
 
 MONITOR
-80
-150
-137
-195
+89
+115
+146
+160
 NIL
 energy
 17
@@ -268,10 +268,10 @@ energy
 11
 
 MONITOR
-0
-150
-77
-195
+9
+115
+86
+160
 NIL
 first-move
 17
@@ -279,25 +279,10 @@ first-move
 11
 
 SLIDER
-0
-45
-185
-78
-wolf-gain-from-food
-wolf-gain-from-food
-0
-100
-20.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-0
-115
-172
-148
+9
+80
+181
+113
 reward-discount
 reward-discount
 0
@@ -309,13 +294,13 @@ NIL
 HORIZONTAL
 
 SWITCH
-5
-205
-112
-238
+9
+170
+114
+203
 narrate?
 narrate?
-0
+1
 1
 -1000
 
