@@ -1,5 +1,7 @@
 __includes [ "actions.nls" ]
 
+extensions [ profiler ]
+
 globals [
   first-move
   reward
@@ -19,6 +21,8 @@ globals [
   init-heading
   grass-density
   vision
+
+  cur-discount
 ]
 
 breed [ sheep a-sheep ]
@@ -43,23 +47,9 @@ to setup [ run-num ]
   ct
   cp
   set reward 0
-;  ask patches [
-;    ifelse random-float 1 < grass-density [
-;      set pcolor green
-;    ] [
-;      set pcolor brown
-;    ]
-;  ]
+  set cur-discount reward-discount
 
-  foreach live-grass-coords [ c ->
-    ask patch first c last c [ set pcolor green ]
-  ]
-  foreach dead-grass-coords [ c ->
-    ask patch first c last c [ set pcolor brown ]
-  ]
-
-;  set-default-shape wolves "wolf"
-;  set-default-shape sheep "sheep"
+  setup-grass
 
   set energy init-energy
 
@@ -85,28 +75,43 @@ to setup [ run-num ]
     ;watch-me
   ]
 
-  foreach wolf-coords [ c ->
-    create-wolves 1 [
-      set color black
-      set size 2
-      set xcor item 0 c
-      set ycor item 1 c
-      set heading item 2 c
-    ]
-  ]
+  setup-wolves
+  setup-sheep
 
-  foreach sheep-coords [ c ->
-    create-sheep 1 [
-      set color white
-      set size 1.5
-      set xcor item 0 c
-      set ycor item 1 c
-      set heading item 2 c
-    ]
-  ]
 
   if narrate? [ print "setup" ]
   reset-ticks
+end
+
+to setup-grass
+  foreach live-grass-coords [ c ->
+    ask patch first c last c [ set pcolor green ]
+  ]
+  foreach dead-grass-coords [ c ->
+    ask patch first c last c [ set pcolor brown ]
+  ]
+end
+
+to setup-wolves
+  foreach wolf-coords [ c ->
+    create-wolves 1 [
+      set color black
+      set xcor item 0 c
+      set ycor item 1 c
+      set heading item 2 c
+    ]
+  ]
+end
+
+to setup-sheep
+  foreach sheep-coords [ c ->
+    create-sheep 1 [
+      set color white
+      set xcor item 0 c
+      set ycor item 1 c
+      set heading item 2 c
+    ]
+  ]
 end
 
 to go
@@ -122,8 +127,10 @@ to go
     grass-check
     act wolf-actions
   ]
-  ask turtle-set ego [
-    death
+  if ego != nobody [
+    ask ego [
+      death
+    ]
   ]
   ask turtles with [
     pxcor = min-pxcor or
@@ -136,7 +143,8 @@ to go
     if narrate? [ print "died" ]
     set energy -1000
   ]
-  set reward reward + (energy - last-energy) * reward-discount ^ ticks
+  set reward reward + (energy - last-energy) * cur-discount
+  set cur-discount cur-discount * reward-discount
   tick
 end
 
