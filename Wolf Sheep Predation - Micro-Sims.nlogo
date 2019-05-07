@@ -162,18 +162,11 @@ to setup-mind [ vision ]
     ls:assign 0 sheep-actions sheep-actions
     ls:assign 0 narrate? false
   ]
-  let xc pxcor
-  let yc pycor
-  let p patch-here
-  ls:let wcs ifelse-value breed = wolves [
-    [ (list (rel-xcor p) (rel-ycor p) heading) ] of wolves in-radius vision
-  ] [
-    []
-  ]
-  ls:let scs [ (list (rel-xcor p) (rel-ycor p)  heading) ] of sheep in-radius vision
+  ls:let wcs [ rel-cors ] of other wolves in-radius vision
+  ls:let scs [ rel-cors ] of other sheep in-radius vision
   let grass-in-vision patches in-radius vision
-  ls:let lgcs [ list (rel-xcor p) (rel-ycor p) ] of grass-in-vision with [ pcolor = green ]
-  ls:let dgcs [ list (rel-xcor p) (rel-ycor p) ] of grass-in-vision with [ pcolor = brown ]
+  ls:let lgcs [ rel-pcors ] of grass-in-vision with [ pcolor = green ]
+  ls:let dgcs [ rel-pcors ] of grass-in-vision with [ pcolor = brown ]
 
   ls:let my-energy energy
   ls:let my-xcor (xcor - pxcor)
@@ -204,22 +197,30 @@ to setup-mind [ vision ]
   ]
 end
 
-to-report rel-xcor [ other-agent ]
-  report ifelse-value (self = other-agent) [
-    0
-  ] [
-    ; not using xcor - xcor because of wrapping
-    0 - (sin towards other-agent) * distance other-agent
-  ]
+to-report rel-cors
+  report (list (rel-xcor xcor) (rel-ycor ycor) heading)
 end
 
-to-report rel-ycor [ other-agent ]
-  report ifelse-value (self = other-agent) [
-    0
-  ] [
-    ; not using ycor - ycor because of wrapping
-    0 - (cos towards other-agent) * distance other-agent
-  ]
+to-report rel-pcors
+  report list (rel-xcor pxcor) (rel-ycor pycor)
+end
+
+to-report rel-xcor [ x ]
+  let d x - [ pxcor ] of myself
+  report (ifelse-value
+    d > world-width / 2 [ d - world-width ]
+    (0 - d) > world-width / 2 [ d + world-width ]
+    [ d ]
+  )
+end
+
+to-report rel-ycor [ y ]
+  let d y - [ pycor ] of myself
+  report (ifelse-value
+    d > world-height / 2 [ d - world-height ]
+    (0 - d) > world-height / 2 [ d + world-height ]
+    [ d ]
+  )
 end
 
 to reproduce
@@ -373,9 +374,9 @@ HORIZONTAL
 
 SLIDER
 185
-45
+80
 360
-78
+113
 grass-regrowth-time
 grass-regrowth-time
 0
@@ -557,7 +558,7 @@ wolf-threshold
 wolf-threshold
 0
 200
-100.0
+60.0
 1
 1
 NIL
@@ -572,7 +573,7 @@ sheep-sim-n
 sheep-sim-n
 0
 50
-12.0
+2.0
 1
 1
 NIL
@@ -602,7 +603,7 @@ wolf-sim-n
 wolf-sim-n
 0
 50
-12.0
+4.0
 1
 1
 NIL
