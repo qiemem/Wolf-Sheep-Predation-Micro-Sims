@@ -4,11 +4,11 @@ __includes [ "actions.nls" ]
 
 
 globals [
-  sheep-counts
-  wolf-counts
-  grass-counts
   sheep-actions
   wolf-actions
+
+  patches-with-sheep
+  grass
 
   sheep-efficiency
   wolf-efficiency
@@ -64,12 +64,11 @@ to setup
     let b sheep-threshold / 2
     set energy b + random b
   ]
-  set sheep-counts []
-  set wolf-counts []
-  set grass-counts []
-  update-stats
-  set smoothed-sheep-efficiency 0.95
-  set smoothed-wolf-efficiency 0.75
+
+  set grass count patches with [ pcolor = green ]
+
+  set smoothed-sheep-efficiency 1
+  set smoothed-wolf-efficiency 1
   reset-ticks
 end
 
@@ -84,33 +83,42 @@ to go
     let results simulate wolf-vision wolf-sim-n wolf-sim-l
     set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
   ]
+
+  let num-eligible-sheep count sheep
   ask sheep [
     act chosen-move
     death ; sheep die from starvation only if running sheep-wolf-grass model version=
     if energy > sheep-threshold [ reproduce ]
   ]
+  set sheep-efficiency safe-div sheep-efficiency num-eligible-sheep
+
+  let num-eligible-wolves count wolves
+  set patches-with-sheep count patches with [ any? sheep-here ]
   ask wolves [
     act chosen-move
     death ; wolves die if our of energy
     if energy > wolf-threshold [ reproduce ]
   ]
+  set wolf-efficiency safe-div wolf-efficiency num-eligible-wolves
+
   ask patches [ grow-grass ]
-  ; set grass count patches with [pcolor = green]
-  update-stats
+
   set smoothed-sheep-efficiency 0.99 * smoothed-sheep-efficiency + 0.01 * sheep-efficiency
   set smoothed-wolf-efficiency 0.99 * smoothed-wolf-efficiency + 0.01 * wolf-efficiency
   tick
 end
 
 to grass-get-eaten
-  ;set grass-eaten grass-eaten + 1
-  set sheep-efficiency sheep-efficiency + count patches / (count grass * count sheep)
+  set sheep-efficiency sheep-efficiency + count patches / grass
+  set grass grass - 1
   set pcolor brown
 end
 
 to sheep-get-eaten
-  ;set sheep-eaten sheep-eaten + 1
-  set wolf-efficiency wolf-efficiency + count patches / (count sheep * count wolves)
+  set wolf-efficiency wolf-efficiency + count patches / patches-with-sheep
+    if not any? other sheep-here [
+      set patches-with-sheep patches-with-sheep - 1
+    ]
   die
 end
 
@@ -239,28 +247,14 @@ end
 to grow-grass  ; patch procedure
   ; countdown on brown patches:  if reach 0, grow some grass
   if pcolor = brown [
-    ifelse countdown <= 0
-      [ set pcolor green
-        set countdown grass-regrowth-time ]
-      [ set countdown countdown - 1 ]
+    ifelse countdown <= 0 [
+      set pcolor green
+      set grass grass + 1
+      set countdown grass-regrowth-time
+    ] [
+      set countdown countdown - 1
+    ]
   ]
-end
-
-to-report grass
-  report patches with [pcolor = green]
-end
-
-to update-stats
-  set sheep-counts fput count sheep sheep-counts
-  set wolf-counts fput count wolves wolf-counts
-  set grass-counts fput count grass grass-counts
-end
-
-to-report sheep-stability [ n ]
-  if length sheep-counts < 2 * n [
-    report 1
-  ]
-  report abs ((mean sublist sheep-counts 0 n) / (mean sublist sheep-counts n (2 * n)) - 1)
 end
 
 to-report fraction-of [ ratio agents ]
@@ -439,7 +433,7 @@ true
 PENS
 "sheep" 1.0 0 -13345367 true "" "plot count sheep"
 "wolves" 1.0 0 -2674135 true "" "plot count wolves"
-"grass / 4" 1.0 0 -10899396 true "" "plot count grass / 4"
+"grass / 4" 1.0 0 -10899396 true "" "plot grass / 4"
 
 MONITOR
 285
@@ -544,7 +538,7 @@ sheep-threshold
 0
 200
 30.0
-1
+10
 1
 NIL
 HORIZONTAL
@@ -558,8 +552,8 @@ wolf-threshold
 wolf-threshold
 0
 200
-60.0
-1
+90.0
+10
 1
 NIL
 HORIZONTAL
@@ -573,7 +567,7 @@ sheep-sim-n
 sheep-sim-n
 0
 50
-2.0
+3.0
 1
 1
 NIL
@@ -588,7 +582,7 @@ sheep-sim-l
 sheep-sim-l
 0
 sheep-vision
-3.0
+1.0
 1
 1
 NIL
@@ -603,7 +597,7 @@ wolf-sim-n
 wolf-sim-n
 0
 50
-4.0
+6.0
 1
 1
 NIL
@@ -618,7 +612,7 @@ wolf-sim-l
 wolf-sim-l
 0
 wolf-vision
-3.0
+1.0
 1
 1
 NIL
@@ -1052,7 +1046,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.0-RC2
+NetLogo 6.1.0
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false

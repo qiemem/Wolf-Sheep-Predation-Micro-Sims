@@ -30,8 +30,8 @@ breed [ wolves wolf ]
 
 to-report run-micro-sims [ num-sims sim-length ]
   let results []
-  foreach range num-sims [ i ->
-    setup i
+  repeat num-sims [
+    setup
     repeat sim-length [
       go
     ]
@@ -40,7 +40,7 @@ to-report run-micro-sims [ num-sims sim-length ]
   report results
 end
 
-to setup [ run-num ]
+to setup
   if max-pxcor != vision * 2 [
     resize-world (- vision * 2) (vision * 2) (- vision * 2) (vision * 2)
   ]
