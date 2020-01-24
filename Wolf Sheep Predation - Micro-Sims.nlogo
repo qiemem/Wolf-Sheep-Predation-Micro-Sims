@@ -116,9 +116,9 @@ end
 
 to sheep-get-eaten
   set wolf-efficiency wolf-efficiency + count patches / patches-with-sheep
-    if not any? other sheep-here [
-      set patches-with-sheep patches-with-sheep - 1
-    ]
+  if not any? other sheep-here [
+    set patches-with-sheep patches-with-sheep - 1
+  ]
   die
 end
 
@@ -170,6 +170,7 @@ to setup-mind [ vision ]
     ls:assign 0 sheep-actions sheep-actions
     ls:assign 0 narrate? false
   ]
+  ls:let dp death-penalty
   ls:let wcs [ rel-cors ] of other wolves in-radius vision
   ls:let scs [ rel-cors ] of other sheep in-radius vision
   let grass-in-vision patches in-radius vision
@@ -188,6 +189,7 @@ to setup-mind [ vision ]
   ls:let v vision
 
   ls:ask 0 [
+    set death-penalty dp
     set reward-discount 0.8
     set wolf-coords wcs
     set sheep-coords scs
@@ -201,7 +203,7 @@ to setup-mind [ vision ]
     set sheep-gain-from-food sgff
     set vision v
     set grass-density length lgcs / (length dgcs + length lgcs)
-;    setup 0
+;    setup
   ]
 end
 
@@ -330,7 +332,7 @@ initial-number-sheep
 initial-number-sheep
 0
 250
-150.0
+100.0
 1
 1
 NIL
@@ -360,7 +362,7 @@ initial-number-wolves
 initial-number-wolves
 0
 250
-50.0
+100.0
 1
 1
 NIL
@@ -417,9 +419,9 @@ NIL
 
 PLOT
 10
-255
+315
 360
-425
+485
 populations
 time
 pop.
@@ -437,9 +439,9 @@ PENS
 
 MONITOR
 285
-325
+385
 355
-370
+430
 sheep
 count sheep
 3
@@ -448,9 +450,9 @@ count sheep
 
 MONITOR
 285
-370
+430
 355
-415
+475
 wolves
 count wolves
 3
@@ -489,9 +491,9 @@ HORIZONTAL
 
 PLOT
 10
-425
+485
 360
-575
+635
 smoothed efficiency
 NIL
 NIL
@@ -508,9 +510,9 @@ PENS
 
 MONITOR
 300
-480
+585
 357
-525
+630
 wolves
 smoothed-wolf-efficiency
 3
@@ -519,9 +521,9 @@ smoothed-wolf-efficiency
 
 MONITOR
 300
-525
+540
 357
-570
+585
 sheep
 smoothed-sheep-efficiency
 3
@@ -552,7 +554,7 @@ wolf-threshold
 wolf-threshold
 0
 200
-90.0
+60.0
 10
 1
 NIL
@@ -567,7 +569,7 @@ sheep-sim-n
 sheep-sim-n
 0
 50
-3.0
+6.0
 1
 1
 NIL
@@ -582,7 +584,7 @@ sheep-sim-l
 sheep-sim-l
 0
 sheep-vision
-1.0
+2.0
 1
 1
 NIL
@@ -597,7 +599,7 @@ wolf-sim-n
 wolf-sim-n
 0
 50
-6.0
+3.0
 1
 1
 NIL
@@ -617,6 +619,17 @@ wolf-vision
 1
 NIL
 HORIZONTAL
+
+INPUTBOX
+100
+255
+260
+315
+death-penalty
+0.0
+1
+0
+Number
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1046,7 +1059,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.0
+NetLogo 6.1.1
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false
@@ -1810,6 +1823,47 @@ or not any? random-wolves</exitCondition>
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-reproduce">
       <value value="4"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-l">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="150"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="90"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-n">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
