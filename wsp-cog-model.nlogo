@@ -141,7 +141,7 @@ to go
 
   if ego = nobody [ ; ego is dead
     if narrate? [ print "died" ]
-    set energy -1000
+    set energy death-penalty
   ]
   set reward reward + (energy - last-energy) * cur-discount
   set cur-discount cur-discount * reward-discount
@@ -236,7 +236,7 @@ BUTTON
 96
 78
 NIL
-setup 0
+setup
 NIL
 1
 T
@@ -311,6 +311,17 @@ narrate?
 1
 1
 -1000
+
+INPUTBOX
+125
+165
+282
+225
+death-penalty
+-10.0
+1
+0
+Number
 
 @#$#@#$#@
 ## WHAT IS IT?

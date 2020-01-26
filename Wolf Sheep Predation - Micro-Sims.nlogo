@@ -468,7 +468,7 @@ sheep-vision
 sheep-vision
 0
 10
-5.0
+2.0
 1
 1
 NIL
@@ -483,7 +483,7 @@ wolf-vision
 wolf-vision
 0
 10
-5.0
+7.0
 1
 1
 NIL
@@ -569,7 +569,7 @@ sheep-sim-n
 sheep-sim-n
 0
 50
-6.0
+1.0
 1
 1
 NIL
@@ -584,7 +584,7 @@ sheep-sim-l
 sheep-sim-l
 0
 sheep-vision
-2.0
+0.0
 1
 1
 NIL
@@ -599,7 +599,7 @@ wolf-sim-n
 wolf-sim-n
 0
 50
-3.0
+2.0
 1
 1
 NIL
@@ -614,7 +614,7 @@ wolf-sim-l
 wolf-sim-l
 0
 wolf-vision
-1.0
+5.0
 1
 1
 NIL
@@ -626,7 +626,7 @@ INPUTBOX
 260
 315
 death-penalty
-0.0
+-10.0
 1
 0
 Number
@@ -1825,10 +1825,19 @@ or not any? random-wolves</exitCondition>
       <value value="4"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
+  <experiment name="wolves-cross-fixed" repetitions="10" runMetricsEveryStep="true">
+    <setup>set wolf-vision wolf-sim-l + 2
+setup</setup>
     <go>go</go>
-    <metric>count turtles</metric>
+    <timeLimit steps="1000"/>
+    <exitCondition>not any? wolves</exitCondition>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>wolf-efficiency</metric>
+    <metric>sheep-efficiency</metric>
+    <steppedValueSet variable="wolf-sim-l" first="0" step="1" last="5"/>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="20"/>
     <enumeratedValueSet variable="wolf-vision">
       <value value="5"/>
     </enumeratedValueSet>
@@ -1836,28 +1845,66 @@ or not any? random-wolves</exitCondition>
       <value value="30"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-sim-l">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="wolf-sim-l">
       <value value="0"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="initial-number-wolves">
-      <value value="50"/>
+      <value value="100"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="initial-number-sheep">
-      <value value="150"/>
+      <value value="100"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-sim-n">
-      <value value="3"/>
+      <value value="0"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="wolf-threshold">
-      <value value="90"/>
+      <value value="60"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-vision">
       <value value="5"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="wolf-sim-n">
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="ws-10x5x10x5" repetitions="1" runMetricsEveryStep="true">
+    <setup>set sheep-vision sheep-sim-l + 2
+set wolf-vision wolf-sim-l + 2
+setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <exitCondition>not any? wolves</exitCondition>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>sheep-efficiency</metric>
+    <metric>wolf-efficiency</metric>
+    <steppedValueSet variable="sheep-sim-n" first="1" step="1" last="10"/>
+    <steppedValueSet variable="sheep-sim-l" first="0" step="1" last="5"/>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="10"/>
+    <steppedValueSet variable="wolf-sim-l" first="0" step="1" last="5"/>
+    <enumeratedValueSet variable="wolf-vision">
       <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="death-penalty">
+      <value value="-10"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-gain-from-food">
       <value value="5"/>
