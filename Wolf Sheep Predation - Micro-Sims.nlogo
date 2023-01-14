@@ -1,4 +1,4 @@
-extensions [ ls profiler ]
+extensions [ ls profiler table ]
 
 __includes [ "actions.nls" ]
 
@@ -12,9 +12,9 @@ globals [
 
   sheep-efficiency
   wolf-efficiency
+  sheep-escape-efficiency
 
-  smoothed-sheep-efficiency
-  smoothed-wolf-efficiency
+  smoothed-values
 ]
 
 ; Sheep and wolves are both breeds of turtle.
@@ -29,6 +29,9 @@ patches-own [ countdown ]
 to setup
   ls:reset
   ca
+
+  set smoothed-values table:make
+
   set sheep-actions [
     "(move 1) + (eat-grass)"
     "(turn 30) + (move 1) + (eat-grass)"
@@ -40,15 +43,14 @@ to setup
     "(turn -30) + (move 1) + (eat-sheep)"
   ]
   ask patches [
-    set pcolor one-of [ green brown ]
-    ifelse pcolor = green [
-      set countdown grass-regrowth-time
-    ] [
-      set countdown random grass-regrowth-time
-    ]
+    set pcolor brown
+    set countdown random grass-regrowth-time
+  ]
+  ask n-of (initial-grass-density * count patches) patches [
+    set pcolor green
+    set countdown grass-regrowth-time
   ]
   set-default-shape wolves "wolf"
-  set-default-shape sheep "sheep"
   create-wolves initial-number-wolves [
     setxy random-xcor random-ycor
     set color black
@@ -56,6 +58,7 @@ to setup
     let b wolf-threshold / 2
     set energy b + random b
   ]
+  set-default-shape sheep "sheep"
   create-sheep initial-number-sheep [
     setxy random-xcor random-ycor
     set shape "sheep"
@@ -67,14 +70,16 @@ to setup
 
   set grass count patches with [ pcolor = green ]
 
-  set smoothed-sheep-efficiency 1
-  set smoothed-wolf-efficiency 1
   reset-ticks
 end
 
 to go
+  if not any? turtles [ stop ]
+
   set sheep-efficiency 0
   set wolf-efficiency 0
+  set sheep-escape-efficiency 0
+
   ask sheep [
     let results simulate sheep-vision sheep-sim-n sheep-sim-l
     set chosen-move ifelse-value empty? results [ one-of sheep-actions ] [ pick-best results ]
@@ -85,6 +90,8 @@ to go
   ]
 
   let num-eligible-sheep count sheep
+  let available-grass grass
+
   ask sheep [
     act chosen-move
     death
@@ -95,16 +102,23 @@ to go
   let num-eligible-wolves count wolves
   set patches-with-sheep count patches with [ any? sheep-here ]
   ask wolves [
+    let prob-of-eating patches-with-sheep / count patches
+    let num-sheep count sheep
     act chosen-move
+    ifelse count sheep < num-sheep [
+      set wolf-efficiency wolf-efficiency + 1 / prob-of-eating
+    ] [
+      set sheep-escape-efficiency sheep-escape-efficiency + 1 / (1 - prob-of-eating)
+    ]
     death ; wolves die if our of energy
     if energy > wolf-threshold [ reproduce wolf-threshold ]
   ]
+
   set wolf-efficiency safe-div wolf-efficiency num-eligible-wolves
+  set sheep-escape-efficiency safe-div sheep-escape-efficiency num-eligible-wolves
 
   ask patches [ grow-grass ]
 
-  set smoothed-sheep-efficiency 0.99 * smoothed-sheep-efficiency + 0.01 * sheep-efficiency
-  set smoothed-wolf-efficiency 0.99 * smoothed-wolf-efficiency + 0.01 * wolf-efficiency
   tick
 end
 
@@ -115,7 +129,6 @@ to grass-get-eaten
 end
 
 to sheep-get-eaten
-  set wolf-efficiency wolf-efficiency + count patches / patches-with-sheep
   if not any? other sheep-here [
     set patches-with-sheep patches-with-sheep - 1
   ]
@@ -297,14 +310,28 @@ to record-micro-sims
   ]
 end
 
+to-report smoothed [ variable c ]
+  report smoothed-val variable (runresult variable) 1 c
+end
+
+to-report smoothed-val [ name cur-value poles c ]
+  foreach range poles [ i ->
+    let var (word name "-" (1 + i))
+    let last-value table:get-or-default smoothed-values var cur-value
+    set cur-value last-value + c * (cur-value - last-value)
+    table:put smoothed-values var cur-value
+  ]
+  report cur-value
+end
+
 
 ; Copyright 1997 Uri Wilensky.
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-365
+730
 10
-883
+1248
 529
 -1
 -1
@@ -344,10 +371,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-10
-115
-185
-148
+15
+160
+190
+193
 sheep-gain-from-food
 sheep-gain-from-food
 0.0
@@ -374,10 +401,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-10
-80
-185
-113
+15
+125
+190
+158
 grass-regrowth-time
 grass-regrowth-time
 0
@@ -389,10 +416,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-10
-45
-79
-78
+15
+90
+84
+123
 setup
 setup
 NIL
@@ -406,10 +433,10 @@ NIL
 1
 
 BUTTON
-80
-45
-155
-78
+85
+90
+160
+123
 go
 go
 T
@@ -423,10 +450,10 @@ NIL
 0
 
 PLOT
+365
 10
-350
-360
-520
+715
+260
 populations
 time
 pop.
@@ -443,10 +470,10 @@ PENS
 "grass / 4" 1.0 0 -10899396 true "" "plot grass / 4"
 
 MONITOR
-285
-420
-355
-465
+640
+80
+710
+125
 sheep
 count sheep
 3
@@ -454,10 +481,10 @@ count sheep
 11
 
 MONITOR
-285
-465
-355
-510
+640
+125
+710
+170
 wolves
 count wolves
 3
@@ -465,10 +492,10 @@ count wolves
 11
 
 SLIDER
-10
-185
-185
-218
+15
+230
+190
+263
 sheep-vision
 sheep-vision
 0
@@ -480,10 +507,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-185
-185
-360
-218
+190
+230
+365
+263
 wolf-vision
 wolf-vision
 0
@@ -495,10 +522,10 @@ NIL
 HORIZONTAL
 
 PLOT
-10
-520
-360
-670
+365
+260
+715
+530
 smoothed efficiency
 NIL
 NIL
@@ -510,36 +537,37 @@ true
 true
 "" ""
 PENS
-"sheep" 1.0 0 -13345367 true "" "plot smoothed-sheep-efficiency"
-"wolves" 1.0 0 -2674135 true "" "plot smoothed-wolf-efficiency"
+"sheep" 1.0 0 -13345367 true "" "plot smoothed-val \"seff\" sheep-efficiency 6 0.1"
+"wolves" 1.0 0 -2674135 true "" "plot smoothed-val \"weff\" wolf-efficiency 6 0.1"
+"pen-2" 1.0 0 -11221820 true "" "plot smoothed-val \"escape\" sheep-escape-efficiency 6 0.1"
 
 MONITOR
-300
-620
-357
-665
+655
+420
+712
+465
 wolves
-smoothed-wolf-efficiency
+table:get smoothed-values \"weff-6\"
 3
 1
 11
 
 MONITOR
-300
-575
-357
-620
+655
+330
+712
+375
 sheep
-smoothed-sheep-efficiency
+table:get smoothed-values \"seff-6\"
 3
 1
 11
 
 SLIDER
-10
-150
-185
-183
+15
+195
+190
+228
 sheep-threshold
 sheep-threshold
 0
@@ -551,10 +579,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-185
-150
-360
-183
+190
+195
+365
+228
 wolf-threshold
 wolf-threshold
 0
@@ -566,40 +594,40 @@ NIL
 HORIZONTAL
 
 SLIDER
-10
-220
-185
-253
+15
+265
+190
+298
 sheep-sim-n
 sheep-sim-n
 1
 50
-1.0
+21.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-10
-255
-185
-288
+15
+300
+190
+333
 sheep-sim-l
 sheep-sim-l
-0
+1
 sheep-vision
-0.0
+2.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-185
-220
-360
-253
+190
+265
+365
+298
 wolf-sim-n
 wolf-sim-n
 1
@@ -611,10 +639,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-185
-255
-360
-288
+190
+300
+365
+333
 wolf-sim-l
 wolf-sim-l
 1
@@ -626,10 +654,10 @@ NIL
 HORIZONTAL
 
 INPUTBOX
-100
-290
-260
-350
+105
+335
+265
+395
 death-penalty
 -10.0
 1
@@ -637,10 +665,10 @@ death-penalty
 Number
 
 SLIDER
-185
-115
-360
-148
+190
+160
+365
+193
 wolf-gain-from-food
 wolf-gain-from-food
 0
@@ -652,10 +680,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-185
-80
-357
-113
+190
+125
+362
+158
 newborn-energy
 newborn-energy
 0
@@ -665,6 +693,32 @@ newborn-energy
 1
 NIL
 HORIZONTAL
+
+SLIDER
+10
+45
+185
+78
+initial-grass-density
+initial-grass-density
+0
+1
+0.35
+0.05
+1
+NIL
+HORIZONTAL
+
+MONITOR
+655
+375
+712
+420
+escape
+table:get smoothed-values \"escape-6\"
+3
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
