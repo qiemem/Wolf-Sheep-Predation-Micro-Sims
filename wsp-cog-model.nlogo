@@ -160,19 +160,28 @@ end
 
 to act [ actions ]
   ifelse self = ego [
-    let m 0
-    ifelse ticks = 0 [
-      set m first-move
-    ] [
-      set m one-of actions
-    ]
-    let res runresult m
-    if narrate? [ print (word m ": " res) ]
-    set energy energy + res
+    ego-act actions
   ] [
-    __ignore runresult one-of actions
+    alter-act actions
   ]
 end
+
+to ego-act [ actions ]
+  let m 0
+  ifelse ticks = 0 [
+    set m first-move
+  ] [
+    set m one-of actions
+  ]
+  let res runresult m
+  if narrate? [ print (word m ": " res) ]
+  set energy energy + res
+end
+
+to alter-act [ actions ]
+  __ignore runresult one-of actions
+end
+
 
 to death
   if energy < 0 [
@@ -231,10 +240,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-9
-45
-96
-78
+5
+100
+92
+133
 NIL
 setup
 NIL
@@ -248,10 +257,10 @@ NIL
 1
 
 BUTTON
-99
-45
-164
-78
+95
+100
+160
+133
 NIL
 go
 T
@@ -265,10 +274,10 @@ NIL
 1
 
 MONITOR
-89
-115
-146
-160
+85
+170
+142
+215
 NIL
 energy
 17
@@ -276,10 +285,10 @@ energy
 11
 
 MONITOR
-9
-115
-86
-160
+5
+170
+82
+215
 NIL
 first-move
 17
@@ -287,10 +296,10 @@ first-move
 11
 
 SLIDER
-9
-80
-181
-113
+5
+135
+177
+168
 reward-discount
 reward-discount
 0
@@ -302,10 +311,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-9
-170
-114
-203
+5
+225
+110
+258
 narrate?
 narrate?
 1
@@ -313,15 +322,30 @@ narrate?
 -1000
 
 INPUTBOX
-125
-165
-282
-225
+121
+220
+278
+280
 death-penalty
 -10.0
 1
 0
 Number
+
+SLIDER
+10
+50
+202
+83
+wolf-gain-from-food
+wolf-gain-from-food
+0
+1
+0.7
+0.1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -665,7 +689,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

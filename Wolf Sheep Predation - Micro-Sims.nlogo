@@ -87,8 +87,8 @@ to go
   let num-eligible-sheep count sheep
   ask sheep [
     act chosen-move
-    death ; sheep die from starvation only if running sheep-wolf-grass model version=
-    if energy > sheep-threshold [ reproduce ]
+    death
+    if energy > sheep-threshold [ reproduce sheep-threshold ]
   ]
   set sheep-efficiency safe-div sheep-efficiency num-eligible-sheep
 
@@ -97,7 +97,7 @@ to go
   ask wolves [
     act chosen-move
     death ; wolves die if our of energy
-    if energy > wolf-threshold [ reproduce ]
+    if energy > wolf-threshold [ reproduce wolf-threshold ]
   ]
   set wolf-efficiency safe-div wolf-efficiency num-eligible-wolves
 
@@ -183,6 +183,7 @@ to setup-mind [ vision ]
   ls:let my-heading heading
 
   ls:let sgff sheep-gain-from-food
+  ls:let wgff wolf-gain-from-food
 
   ls:let my-breed (word breed)
 
@@ -201,6 +202,7 @@ to setup-mind [ vision ]
     set init-ycor my-ycor
     set init-heading my-heading
     set sheep-gain-from-food sgff
+    set wolf-gain-from-food wgff
     set vision v
     set grass-density length lgcs / (length dgcs + length lgcs)
 ;    setup
@@ -233,10 +235,13 @@ to-report rel-ycor [ y ]
   )
 end
 
-to reproduce
-  set energy energy / 2
+
+to reproduce [ threshold ]
+  let baby-energy round (threshold * newborn-energy)
+  set energy energy - baby-energy
   hatch 1 [
-    rt random 360
+    set energy baby-energy
+    rt random-float 360
     fd 1
   ]
 end
@@ -340,9 +345,9 @@ HORIZONTAL
 
 SLIDER
 10
-80
+115
 185
-113
+148
 sheep-gain-from-food
 sheep-gain-from-food
 0.0
@@ -369,9 +374,9 @@ NIL
 HORIZONTAL
 
 SLIDER
-185
+10
 80
-360
+185
 113
 grass-regrowth-time
 grass-regrowth-time
@@ -419,9 +424,9 @@ NIL
 
 PLOT
 10
-315
+350
 360
-485
+520
 populations
 time
 pop.
@@ -439,9 +444,9 @@ PENS
 
 MONITOR
 285
-385
+420
 355
-430
+465
 sheep
 count sheep
 3
@@ -450,9 +455,9 @@ count sheep
 
 MONITOR
 285
-430
+465
 355
-475
+510
 wolves
 count wolves
 3
@@ -461,14 +466,14 @@ count wolves
 
 SLIDER
 10
-150
 185
-183
+185
+218
 sheep-vision
 sheep-vision
 0
 10
-2.0
+5.0
 1
 1
 NIL
@@ -476,14 +481,14 @@ HORIZONTAL
 
 SLIDER
 185
-150
+185
 360
-183
+218
 wolf-vision
 wolf-vision
 0
 10
-7.0
+5.0
 1
 1
 NIL
@@ -491,9 +496,9 @@ HORIZONTAL
 
 PLOT
 10
-485
+520
 360
-635
+670
 smoothed efficiency
 NIL
 NIL
@@ -510,9 +515,9 @@ PENS
 
 MONITOR
 300
-585
+620
 357
-630
+665
 wolves
 smoothed-wolf-efficiency
 3
@@ -521,9 +526,9 @@ smoothed-wolf-efficiency
 
 MONITOR
 300
-540
+575
 357
-585
+620
 sheep
 smoothed-sheep-efficiency
 3
@@ -532,14 +537,14 @@ smoothed-sheep-efficiency
 
 SLIDER
 10
-115
+150
 185
-148
+183
 sheep-threshold
 sheep-threshold
 0
 200
-30.0
+70.0
 10
 1
 NIL
@@ -547,30 +552,15 @@ HORIZONTAL
 
 SLIDER
 185
-115
+150
 360
-148
+183
 wolf-threshold
 wolf-threshold
 0
 200
-60.0
+70.0
 10
-1
-NIL
-HORIZONTAL
-
-SLIDER
-10
-185
-185
-218
-sheep-sim-n
-sheep-sim-n
-0
-50
-1.0
-1
 1
 NIL
 HORIZONTAL
@@ -580,6 +570,21 @@ SLIDER
 220
 185
 253
+sheep-sim-n
+sheep-sim-n
+1
+50
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+10
+255
+185
+288
 sheep-sim-l
 sheep-sim-l
 0
@@ -592,14 +597,14 @@ HORIZONTAL
 
 SLIDER
 185
-185
+220
 360
-218
+253
 wolf-sim-n
 wolf-sim-n
-0
+1
 50
-2.0
+1.0
 1
 1
 NIL
@@ -607,14 +612,14 @@ HORIZONTAL
 
 SLIDER
 185
-220
+255
 360
-253
+288
 wolf-sim-l
 wolf-sim-l
-0
+1
 wolf-vision
-5.0
+1.0
 1
 1
 NIL
@@ -622,14 +627,44 @@ HORIZONTAL
 
 INPUTBOX
 100
-255
+290
 260
-315
+350
 death-penalty
 -10.0
 1
 0
 Number
+
+SLIDER
+185
+115
+360
+148
+wolf-gain-from-food
+wolf-gain-from-food
+0
+1
+0.7
+0.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+185
+80
+357
+113
+newborn-energy
+newborn-energy
+0
+1
+0.1
+0.1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1059,7 +1094,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.3.0
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false
@@ -1884,6 +1919,50 @@ setup</setup>
     <steppedValueSet variable="sheep-sim-n" first="1" step="1" last="10"/>
     <steppedValueSet variable="sheep-sim-l" first="0" step="1" last="5"/>
     <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="10"/>
+    <steppedValueSet variable="wolf-sim-l" first="0" step="1" last="5"/>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="death-penalty">
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="ws-5x5x5x5" repetitions="1" runMetricsEveryStep="true">
+    <setup>set sheep-vision sheep-sim-l + 2
+set wolf-vision wolf-sim-l + 2
+setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <exitCondition>not any? wolves</exitCondition>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>sheep-efficiency</metric>
+    <metric>wolf-efficiency</metric>
+    <steppedValueSet variable="sheep-sim-n" first="1" step="1" last="5"/>
+    <steppedValueSet variable="sheep-sim-l" first="0" step="1" last="5"/>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="5"/>
     <steppedValueSet variable="wolf-sim-l" first="0" step="1" last="5"/>
     <enumeratedValueSet variable="wolf-vision">
       <value value="0"/>
