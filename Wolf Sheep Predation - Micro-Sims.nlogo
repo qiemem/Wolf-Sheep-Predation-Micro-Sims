@@ -2194,10 +2194,10 @@ setup</setup>
       <value value="true"/>
     </enumeratedValueSet>
   </experiment>
-  <experiment name="2023-01-16-s-30x5-1000" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="2023-01-16-s-30x5-2000" repetitions="1" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="1000"/>
+    <timeLimit steps="2000"/>
     <metric>count sheep</metric>
     <metric>count wolves</metric>
     <metric>grass</metric>
@@ -2265,13 +2265,13 @@ setup</setup>
     <enumeratedValueSet variable="sheep-see-wolves?">
       <value value="true"/>
     </enumeratedValueSet>
-    <steppedValueSet variable="sheep-sim-n" first="0" step="1" last="30"/>
+    <steppedValueSet variable="sheep-sim-n" first="1" step="1" last="30"/>
     <steppedValueSet variable="sheep-sim-l" first="1" step="1" last="5"/>
   </experiment>
-  <experiment name="2023-01-16-w-30x5-1000" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="2023-01-16-w-30x5-2000" repetitions="1" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="1000"/>
+    <timeLimit steps="2000"/>
     <metric>count sheep</metric>
     <metric>count wolves</metric>
     <metric>grass</metric>
