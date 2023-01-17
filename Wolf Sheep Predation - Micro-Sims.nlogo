@@ -2268,6 +2268,80 @@ setup</setup>
     <steppedValueSet variable="sheep-sim-n" first="0" step="1" last="30"/>
     <steppedValueSet variable="sheep-sim-l" first="1" step="1" last="5"/>
   </experiment>
+  <experiment name="2023-01-16-w-30x5-1000" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>patches-with-sheep</metric>
+    <metric>sheep-efficiency</metric>
+    <metric>sheep-escape-efficiency</metric>
+    <metric>wolf-efficiency</metric>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="death-penalty">
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-grass-density">
+      <value value="0.35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="newborn-energy">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-sheep?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-grass?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-wolves?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="30"/>
+    <steppedValueSet variable="wolf-sim-l" first="1" step="1" last="5"/>
+    <enumeratedValueSet variable="sheep-see-sheep?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-grass?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-wolves?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="0"/>
+    </enumeratedValueSet>
+  </experiment>
 </experiments>
 @#$#@#$#@
 @#$#@#$#@
