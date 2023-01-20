@@ -81,11 +81,11 @@ to go
   set sheep-escape-efficiency 0
 
   ask sheep [
-    let results simulate sheep-vision sheep-sim-n sheep-sim-l
+    let results simulate sheep-vision sheep-sim-n sheep-sim-l sheep-see-sheep? sheep-see-wolves? sheep-see-grass?
     set chosen-move ifelse-value empty? results [ one-of sheep-actions ] [ pick-best results ]
   ]
   ask wolves [
-    let results simulate wolf-vision wolf-sim-n wolf-sim-l
+    let results simulate wolf-vision wolf-sim-n wolf-sim-l wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
     set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
   ]
 
@@ -167,16 +167,16 @@ to-report safe-div [ num den ]
   report num / den
 end
 
-to-report simulate [ vision num dur ]
-  ifelse num > 1 and dur > 0 [
-    setup-mind vision
+to-report simulate [ vision num dur see-sheep? see-wolves? see-grass? ]
+  ifelse num > 1 and dur > 0 and (see-sheep? or see-wolves? or see-grass?) [
+    setup-mind vision see-sheep? see-wolves? see-grass?
     report (ls:report 0 [ [n d] -> run-micro-sims n d ] num dur)
   ] [
     report []
   ]
 end
 
-to setup-mind [ vision ]
+to setup-mind [ vision see-sheep? see-wolves? see-grass? ]
   if empty? ls:models [
     ls:create-models 1 "wsp-cog-model.nlogo"
     ls:assign 0 wolf-actions wolf-actions
@@ -184,9 +184,9 @@ to setup-mind [ vision ]
     ls:assign 0 narrate? false
   ]
   ls:let dp death-penalty
-  ls:let wcs [ rel-cors ] of ifelse-value can-see-wolves? [ other wolves in-radius vision ] [ no-turtles ]
-  ls:let scs [ rel-cors ] of ifelse-value can-see-sheep? [ other sheep in-radius vision ] [ no-turtles ]
-  let grass-in-vision ifelse-value can-see-grass? [ patches in-radius vision ] [ no-patches ]
+  ls:let wcs [ rel-cors ] of ifelse-value see-wolves? [ other wolves in-radius vision ] [ no-turtles ]
+  ls:let scs [ rel-cors ] of ifelse-value see-sheep? [ other sheep in-radius vision ] [ no-turtles ]
+  let grass-in-vision ifelse-value see-grass? [ patches in-radius vision ] [ no-patches ]
   ls:let lgcs [ rel-pcors ] of grass-in-vision with [ pcolor = green ]
   ls:let dgcs [ rel-pcors ] of grass-in-vision with [ pcolor = brown ]
 
@@ -298,16 +298,22 @@ to record-micro-sims
   let n sheep-sim-n
   let l sheep-sim-l
   let actions sheep-actions
+  let see-sheep? sheep-see-sheep?
+  let see-wolves? sheep-see-wolves?
+  let see-grass? sheep-see-grass?
   if is-wolf? self [
     set vision wolf-vision
     set n wolf-sim-n
     set l wolf-sim-l
     set actions wolf-actions
+    set see-sheep? wolves-see-sheep?
+    set see-wolves? wolves-see-wolves?
+    set see-grass? wolves-see-grass?
   ]
   ls:let id who
   ls:let n n
   ls:let l l
-  setup-mind vision
+  setup-mind vision see-sheep? see-wolves? see-grass?
   ls:ask 0 [
 
     foreach range n [ r ->
@@ -330,6 +336,7 @@ to-report smoothed-val [ name cur-value poles c ]
   foreach range poles [ i ->
     let var (word name "-" (1 + i))
     let last-value table:get-or-default smoothed-values var cur-value
+    let zero? cur-value = 0
     set cur-value last-value + c * (cur-value - last-value)
     table:put smoothed-values var cur-value
   ]
@@ -549,9 +556,9 @@ true
 true
 "" ""
 PENS
-"sheep" 1.0 0 -13345367 true "" "plot smoothed-val \"seff\" sheep-efficiency 6 0.1"
-"wolves" 1.0 0 -2674135 true "" "plot smoothed-val \"weff\" wolf-efficiency 6 0.1"
-"escape" 1.0 0 -11221820 true "" "plot smoothed-val \"escape\" sheep-escape-efficiency 6 0.1"
+"sheep" 1.0 0 -13345367 true "" "plotxy ticks smoothed-val \"seff\" sheep-efficiency 6 0.1"
+"wolves" 1.0 0 -2674135 true "" "plotxy ticks smoothed-val \"weff\" wolf-efficiency 6 0.1"
+"escape" 1.0 0 -11221820 true "" "plotxy ticks smoothed-val \"escape\" sheep-escape-efficiency 6 0.1"
 
 MONITOR
 655
@@ -607,14 +614,14 @@ HORIZONTAL
 
 SLIDER
 0
-360
+395
 175
-393
+428
 sheep-sim-n
 sheep-sim-n
 1
 50
-30.0
+9.0
 1
 1
 NIL
@@ -622,14 +629,14 @@ HORIZONTAL
 
 SLIDER
 0
-395
+430
 175
-428
+463
 sheep-sim-l
 sheep-sim-l
 1
 sheep-vision
-5.0
+3.0
 1
 1
 NIL
@@ -637,9 +644,9 @@ HORIZONTAL
 
 SLIDER
 175
-360
+395
 350
-393
+428
 wolf-sim-n
 wolf-sim-n
 1
@@ -652,9 +659,9 @@ HORIZONTAL
 
 SLIDER
 175
-395
+430
 350
-428
+463
 wolf-sim-l
 wolf-sim-l
 1
@@ -667,9 +674,9 @@ HORIZONTAL
 
 INPUTBOX
 90
-430
+465
 250
-490
+525
 death-penalty
 -10.0
 1
@@ -734,9 +741,9 @@ table:get smoothed-values \"escape-6\"
 
 SWITCH
 0
-220
+290
 175
-253
+323
 sheep-see-grass?
 sheep-see-grass?
 0
@@ -756,23 +763,23 @@ sheep-see-wolves?
 
 SWITCH
 0
-290
+220
 175
-323
+253
 sheep-see-sheep?
 sheep-see-sheep?
-0
+1
 1
 -1000
 
 SWITCH
 175
-220
+290
 350
-253
+323
 wolves-see-grass?
 wolves-see-grass?
-1
+0
 1
 -1000
 
@@ -783,20 +790,50 @@ SWITCH
 288
 wolves-see-wolves?
 wolves-see-wolves?
-1
+0
 1
 -1000
 
 SWITCH
 175
-290
+220
 350
-323
+253
 wolves-see-sheep?
 wolves-see-sheep?
-1
+0
 1
 -1000
+
+SLIDER
+0
+360
+175
+393
+sheep-sim-warmup
+sheep-sim-warmup
+0
+50
+0.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+175
+360
+350
+393
+wolf-sim-warmup
+wolf-sim-warmup
+0
+50
+0.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -2340,6 +2377,94 @@ setup</setup>
     </enumeratedValueSet>
     <enumeratedValueSet variable="sheep-sim-l">
       <value value="0"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="2023-01-20-s-n_3_6_9-l_3-w-n_3_9_30-l_5-perception-sweep" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>patches-with-sheep</metric>
+    <metric>sheep-efficiency</metric>
+    <metric>sheep-escape-efficiency</metric>
+    <metric>wolf-efficiency</metric>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="death-penalty">
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-grass-density">
+      <value value="0.35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="newborn-energy">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-sheep?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-grass?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-wolves?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-n">
+      <value value="3"/>
+      <value value="9"/>
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-l">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-sheep?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-grass?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-wolves?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="3"/>
+      <value value="6"/>
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="3"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
