@@ -28,7 +28,7 @@ globals [
 breed [ sheep a-sheep ]
 breed [ wolves wolf ]
 
-to-report run-micro-sims [ num-sims sim-length ]
+to-report run-micro-sims [ num-warmup num-sims sim-length ]
   let results []
   repeat num-sims [
     setup
@@ -84,6 +84,7 @@ to setup
 end
 
 to setup-grass
+;  ask patches [ ifelse random-float 1 < grass-density [ set pcolor green ] [ set pcolor brown ] ]
   foreach live-grass-coords [ c ->
     ask patch first c last c [ set pcolor green ]
   ]
@@ -120,11 +121,9 @@ to go
   ]
   let last-energy energy
   ask sheep [
-    grass-check
     act sheep-actions
   ]
   ask wolves [
-    grass-check
     act wolf-actions
   ]
   if ego != nobody [
@@ -148,14 +147,11 @@ to go
   tick
 end
 
-to grass-check
+to-report is-grass?
   if pcolor = black [
-    ifelse random-float 1 < grass-density [
-      set pcolor green
-    ] [
-      set pcolor brown
-    ]
+    set pcolor ifelse-value random-float 1 < grass-density [ green ] [ brown ]
   ]
+  report pcolor = green
 end
 
 to act [ actions ]

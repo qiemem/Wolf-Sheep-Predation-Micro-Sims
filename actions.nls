@@ -9,7 +9,7 @@ to-report turn [ angle ]
 end
 
 to-report eat-grass
-  if pcolor = green [
+  if is-grass? [
     grass-get-eaten
     report sheep-gain-from-food
   ]

@@ -81,11 +81,11 @@ to go
   set sheep-escape-efficiency 0
 
   ask sheep [
-    let results simulate sheep-vision sheep-sim-n sheep-sim-l sheep-see-sheep? sheep-see-wolves? sheep-see-grass?
+    let results simulate sheep-vision sheep-sim-warmup sheep-sim-n sheep-sim-l sheep-see-sheep? sheep-see-wolves? sheep-see-grass?
     set chosen-move ifelse-value empty? results [ one-of sheep-actions ] [ pick-best results ]
   ]
   ask wolves [
-    let results simulate wolf-vision wolf-sim-n wolf-sim-l wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
+    let results simulate wolf-vision wolf-sim-warmup wolf-sim-n wolf-sim-l wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
     set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
   ]
 
@@ -167,10 +167,10 @@ to-report safe-div [ num den ]
   report num / den
 end
 
-to-report simulate [ vision num dur see-sheep? see-wolves? see-grass? ]
+to-report simulate [ vision warmup num dur see-sheep? see-wolves? see-grass? ]
   ifelse num > 1 and dur > 0 and (see-sheep? or see-wolves? or see-grass?) [
     setup-mind vision see-sheep? see-wolves? see-grass?
-    report (ls:report 0 [ [n d] -> run-micro-sims n d ] num dur)
+    report (ls:report 0 [ [w n d] -> run-micro-sims w n d ] warmup num dur)
   ] [
     report []
   ]
@@ -217,7 +217,7 @@ to setup-mind [ vision see-sheep? see-wolves? see-grass? ]
     set sheep-gain-from-food sgff
     set wolf-gain-from-food wgff
     set vision v
-    set grass-density ifelse-value empty? lgcs [ 0 ] [ length lgcs / (length dgcs + length lgcs) ]
+    set grass-density ifelse-value empty? lgcs [ 0.5 ] [ length lgcs / (length dgcs + length lgcs) ]
 ;    setup
   ]
 end
@@ -341,6 +341,10 @@ to-report smoothed-val [ name cur-value poles c ]
     table:put smoothed-values var cur-value
   ]
   report cur-value
+end
+
+to-report is-grass?
+  report pcolor = green
 end
 
 
@@ -746,7 +750,7 @@ SWITCH
 323
 sheep-see-grass?
 sheep-see-grass?
-0
+1
 1
 -1000
 
@@ -757,7 +761,7 @@ SWITCH
 288
 sheep-see-wolves?
 sheep-see-wolves?
-0
+1
 1
 -1000
 
@@ -768,7 +772,7 @@ SWITCH
 253
 sheep-see-sheep?
 sheep-see-sheep?
-1
+0
 1
 -1000
 
@@ -779,7 +783,7 @@ SWITCH
 323
 wolves-see-grass?
 wolves-see-grass?
-0
+1
 1
 -1000
 
@@ -790,7 +794,7 @@ SWITCH
 288
 wolves-see-wolves?
 wolves-see-wolves?
-0
+1
 1
 -1000
 
@@ -801,7 +805,7 @@ SWITCH
 253
 wolves-see-sheep?
 wolves-see-sheep?
-0
+1
 1
 -1000
 
