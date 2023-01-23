@@ -3,8 +3,8 @@ __includes [ "actions.nls" ]
 extensions [ profiler table ]
 
 globals [
-  first-move
-  reward
+  rewards
+  first-moves
   ego
 
   wolf-actions
@@ -27,7 +27,7 @@ globals [
 breed [ sheep a-sheep ]
 breed [ wolves wolf ]
 
-turtles-own [ energy ]
+turtles-own [ energy delta-energy ]
 
 to-report run-micro-sims [ num-warmup num-sims sim-length ]
   let results []
@@ -36,7 +36,7 @@ to-report run-micro-sims [ num-warmup num-sims sim-length ]
     repeat sim-length [
       go
     ]
-    set results lput list first-move reward results
+    set results lput list (table:get first-moves 0) (table:get rewards 0) results
   ]
   report results
 end
@@ -47,7 +47,14 @@ to setup
   ]
   ct
   cp
-  set reward 0
+  ifelse is-number? rewards [
+    set rewards table:make
+    set first-moves table:make
+  ] [
+    table:clear rewards
+    table:clear first-moves
+  ]
+
   set cur-discount reward-discount
 
   setup-grass
@@ -57,13 +64,13 @@ to setup
       set color white
     ]
 ;    set first-move item (run-num mod length sheep-actions) sheep-actions
-    set first-move one-of sheep-actions
+    table:put first-moves 0 one-of sheep-actions
   ] [
     create-wolves 1 [
       set color black
     ]
 ;    set first-move item (run-num mod length sheep-actions) wolf-actions
-    set first-move one-of wolf-actions
+    table:put first-moves 0 one-of wolf-actions
   ]
 
   ask turtle 0 [
@@ -78,6 +85,9 @@ to setup
   setup-wolves
   setup-sheep
 
+  ask turtles [
+    table:put rewards who 0
+  ]
 
   if narrate? [ print "setup" ]
   reset-ticks
@@ -101,6 +111,7 @@ to setup-wolves
       set xcor item 0 c
       set ycor item 1 c
       set heading item 2 c
+      table:put first-moves who one-of wolf-actions
     ]
   ]
 end
@@ -113,6 +124,7 @@ to setup-sheep
       set xcor item 0 c
       set ycor item 1 c
       set heading item 2 c
+      table:put first-moves who one-of sheep-actions
     ]
   ]
 end
@@ -140,13 +152,19 @@ to go
     pycor = max-pycor
   ] [ die ] ; leaving the world; forget about them
 
-  ifelse ego = nobody [ ; ego is dead
-    if narrate? [ print "died" ]
-    set reward reward + death-penalty * cur-discount
-  ] [
-    ask ego [
-      set reward reward + (energy - last-energy) * cur-discount
+  foreach table:to-list rewards [ pair ->
+    let r 0
+    let t turtle first pair
+    ifelse t = nobody [
+      set r death-penalty
+    ] [
+      set r [ delta-energy ] of t
     ]
+    table:put rewards (first pair) (last pair) + r * cur-discount
+  ]
+
+  if ego = nobody and narrate? [ ; ego is dead
+    print "died"
   ]
   set cur-discount cur-discount * reward-discount
   tick
@@ -160,29 +178,16 @@ to-report is-grass?
 end
 
 to act [ actions ]
-  ifelse self = ego [
-    ego-act actions
-  ] [
-    alter-act actions
-  ]
-end
-
-to ego-act [ actions ]
   let m 0
   ifelse ticks = 0 [
-    set m first-move
+    set m table:get first-moves who
   ] [
     set m one-of actions
   ]
   let res runresult m
-  if narrate? [ print (word m ": " res) ]
+  if narrate? and self = ego [ print (word m ": " res) ]
   set energy energy + res
 end
-
-to alter-act [ actions ]
-  set energy energy + runresult one-of actions
-end
-
 
 to death
   if energy < 0 [
