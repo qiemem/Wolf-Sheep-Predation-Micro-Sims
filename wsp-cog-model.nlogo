@@ -1,11 +1,10 @@
 __includes [ "actions.nls" ]
 
-extensions [ profiler ]
+extensions [ profiler table ]
 
 globals [
   first-move
   reward
-  energy
   ego
 
   wolf-actions
@@ -27,6 +26,8 @@ globals [
 
 breed [ sheep a-sheep ]
 breed [ wolves wolf ]
+
+turtles-own [ energy ]
 
 to-report run-micro-sims [ num-warmup num-sims sim-length ]
   let results []
@@ -51,8 +52,6 @@ to setup
 
   setup-grass
 
-  set energy init-energy
-
   ifelse ego-breed = "sheep" [
     create-sheep 1 [
       set color white
@@ -72,6 +71,7 @@ to setup
     set ycor init-ycor
     set heading init-heading
     set ego self
+    set energy init-energy
     ;watch-me
   ]
 
@@ -96,6 +96,7 @@ end
 to setup-wolves
   foreach wolf-coords [ c ->
     create-wolves 1 [
+      set energy 50
       set color black
       set xcor item 0 c
       set ycor item 1 c
@@ -107,6 +108,7 @@ end
 to setup-sheep
   foreach sheep-coords [ c ->
     create-sheep 1 [
+      set energy 50
       set color white
       set xcor item 0 c
       set ycor item 1 c
@@ -119,7 +121,7 @@ to go
   if ego = nobody [
     stop
   ]
-  let last-energy energy
+  let last-energy [ energy ] of ego
   ask sheep [
     act sheep-actions
   ]
@@ -138,11 +140,14 @@ to go
     pycor = max-pycor
   ] [ die ] ; leaving the world; forget about them
 
-  if ego = nobody [ ; ego is dead
+  ifelse ego = nobody [ ; ego is dead
     if narrate? [ print "died" ]
-    set energy death-penalty
+    set reward reward + death-penalty * cur-discount
+  ] [
+    ask ego [
+      set reward reward + (energy - last-energy) * cur-discount
+    ]
   ]
-  set reward reward + (energy - last-energy) * cur-discount
   set cur-discount cur-discount * reward-discount
   tick
 end
@@ -175,7 +180,7 @@ to ego-act [ actions ]
 end
 
 to alter-act [ actions ]
-  __ignore runresult one-of actions
+  set energy energy + runresult one-of actions
 end
 
 

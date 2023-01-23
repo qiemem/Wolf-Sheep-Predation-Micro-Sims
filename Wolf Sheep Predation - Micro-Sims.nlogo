@@ -655,7 +655,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-1.0
+9.0
 1
 1
 NIL
@@ -670,7 +670,7 @@ wolf-sim-l
 wolf-sim-l
 1
 wolf-vision
-1.0
+3.0
 1
 1
 NIL
@@ -772,7 +772,7 @@ SWITCH
 253
 sheep-see-sheep?
 sheep-see-sheep?
-0
+1
 1
 -1000
 
@@ -783,7 +783,7 @@ SWITCH
 323
 wolves-see-grass?
 wolves-see-grass?
-1
+0
 1
 -1000
 
@@ -794,7 +794,7 @@ SWITCH
 288
 wolves-see-wolves?
 wolves-see-wolves?
-1
+0
 1
 -1000
 
@@ -805,7 +805,7 @@ SWITCH
 253
 wolves-see-sheep?
 wolves-see-sheep?
-1
+0
 1
 -1000
 
