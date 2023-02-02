@@ -26,6 +26,54 @@ turtles-own [
 ]       ; both wolves and sheep have energy
 patches-own [ countdown ]
 
+to sample-effs
+  reset-timer
+  setup
+  let n 1000
+  let weff []
+  let seff []
+  let wpop []
+  let spop []
+  let gpop []
+
+  let seff-escape []
+
+  while [ ticks < n and any? turtles ] [
+    set spop lput count sheep spop
+    set wpop lput count wolves wpop
+    set gpop lput grass gpop
+    go
+    set weff lput wolf-efficiency weff
+    set seff lput sheep-efficiency seff
+    set seff-escape lput sheep-escape-efficiency seff-escape
+  ]
+  print (word "Runtime: " timer)
+  let w-tick-mean mean weff
+  let s-tick-mean mean seff
+  let w-indiv-mean safe-div (sum (map * weff wpop)) (sum wpop)
+  let s-indiv-mean safe-div (sum (map * seff spop)) (sum spop)
+
+  let s-esc-tick-mean mean seff-escape
+  let s-esc-indiv-mean safe-div (sum (map * seff-escape spop)) (sum spop)
+
+  print (word
+    "Sheep:   tick-mean=" (precision s-tick-mean 2)
+    " indiv-mean=" (precision s-indiv-mean 2)
+    " pop-mean=" (precision mean spop 2)
+    " pop-std=" (precision standard-deviation spop 2)
+    " sheep-params=" (list sheep-sim-warmup sheep-sim-n sheep-sim-l)
+  )
+  print (word "Sheepesc tick-mean=" (precision s-esc-tick-mean 2) " indiv-mean=" (precision s-esc-indiv-mean 2))
+  print (word
+    "Wolves:  tick-mean=" (precision w-tick-mean 2)
+    " indiv-mean=" (precision w-indiv-mean 2)
+    " pop-mean=" (precision mean wpop 2)
+    " pop-std=" (precision standard-deviation wpop 2)
+    " wolf-params=" (list wolf-sim-warmup wolf-sim-n wolf-sim-l)
+  )
+  print (word "Grass:   pop-std=" (precision standard-deviation gpop 2))
+end
+
 to setup
   ls:reset
   ca
@@ -234,9 +282,9 @@ to-report can-see-sheep?
   report ifelse-value is-a-sheep? self [ sheep-see-sheep? ] [ wolves-see-sheep? ]
 end
 
-to-report rel-cors
-  report (list (rel-xcor xcor) (rel-ycor ycor) heading)
-end
+;to-report rel-cors
+;  report (list (rel-xcor xcor) (rel-ycor ycor) heading)
+;end
 
 to-report rel-pcors
   report list (rel-xcor pxcor) (rel-ycor pycor)
@@ -260,6 +308,11 @@ to-report rel-ycor [ y ]
   )
 end
 
+to-report rel-cors
+  let t towards myself
+  let d 0 - distance myself
+  report (list (d * sin t) (d * cos t) heading)
+end
 
 to reproduce [ threshold ]
   let baby-energy round (threshold * newborn-energy)
@@ -625,7 +678,7 @@ sheep-sim-n
 sheep-sim-n
 1
 50
-9.0
+6.0
 1
 1
 NIL
@@ -655,7 +708,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-9.0
+12.0
 1
 1
 NIL
@@ -750,7 +803,7 @@ SWITCH
 323
 sheep-see-grass?
 sheep-see-grass?
-1
+0
 1
 -1000
 
@@ -761,7 +814,7 @@ SWITCH
 288
 sheep-see-wolves?
 sheep-see-wolves?
-1
+0
 1
 -1000
 
@@ -818,7 +871,7 @@ sheep-sim-warmup
 sheep-sim-warmup
 0
 50
-0.0
+6.0
 1
 1
 NIL
@@ -838,6 +891,23 @@ wolf-sim-warmup
 1
 NIL
 HORIZONTAL
+
+BUTTON
+200
+80
+312
+113
+NIL
+sample-effs
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?

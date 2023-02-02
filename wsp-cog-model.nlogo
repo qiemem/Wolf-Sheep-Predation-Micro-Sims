@@ -30,15 +30,64 @@ breed [ wolves wolf ]
 turtles-own [ energy delta-energy ]
 
 to-report run-micro-sims [ num-warmup num-sims sim-length ]
-  let results []
-  repeat num-sims [
+  set first-moves table:make
+  set rewards table:make
+  let results table:from-list [[0 []]]
+;  let results []
+  repeat num-warmup [
     setup
+    table:clear rewards
+    ask sheep [
+      table:put rewards who 0
+      table:put first-moves who one-of sheep-actions
+    ]
+    ask wolves [
+      table:put rewards who 0
+      table:put first-moves who one-of wolf-actions
+    ]
     repeat sim-length [
       go
     ]
-    set results lput list (table:get first-moves 0) (table:get rewards 0) results
+    foreach table:to-list rewards [ reward-pair ->
+      let agent first reward-pair
+      let reward last reward-pair
+      let fm table:get first-moves agent
+      let agent-results table:get-or-default results agent []
+      table:put results agent lput (list fm reward) agent-results
+    ]
   ]
-  report results
+
+  if num-warmup > 0 [
+    foreach table:to-list results [ agent-result ->
+      let agent first agent-result
+      let result last agent-result
+      let best-action pick-best result
+;      print (word agent ": picked " best-action " from " result)
+      table:put first-moves agent best-action
+    ]
+  ]
+
+  repeat num-sims [
+    setup
+    table:clear rewards
+    if num-warmup = 0 [
+      ask sheep [
+        table:put first-moves who one-of sheep-actions
+      ]
+      ask wolves [
+        table:put first-moves who one-of wolf-actions
+      ]
+    ]
+    ask ego [
+      table:put first-moves who one-of (ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ])
+      table:put rewards who 0
+    ]
+    repeat sim-length [
+      go
+    ]
+    table:put results 0 lput (list (table:get first-moves 0) (table:get rewards 0)) (table:get results 0)
+  ]
+  report table:get results 0
 end
 
 to setup
@@ -47,13 +96,6 @@ to setup
   ]
   ct
   cp
-  ifelse is-number? rewards [
-    set rewards table:make
-    set first-moves table:make
-  ] [
-    table:clear rewards
-    table:clear first-moves
-  ]
 
   set cur-discount reward-discount
 
@@ -64,13 +106,13 @@ to setup
       set color white
     ]
 ;    set first-move item (run-num mod length sheep-actions) sheep-actions
-    table:put first-moves 0 one-of sheep-actions
+;    table:put first-moves 0 one-of sheep-actions
   ] [
     create-wolves 1 [
       set color black
     ]
 ;    set first-move item (run-num mod length sheep-actions) wolf-actions
-    table:put first-moves 0 one-of wolf-actions
+;    table:put first-moves 0 one-of wolf-actions
   ]
 
   ask turtle 0 [
@@ -85,8 +127,12 @@ to setup
   setup-wolves
   setup-sheep
 
-  ask turtles [
+;  ask turtles [
+;    table:put rewards who 0
+;  ]
+  ask ego [
     table:put rewards who 0
+;    table:put first-moves who one-of (ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ])
   ]
 
   if narrate? [ print "setup" ]
@@ -111,7 +157,7 @@ to setup-wolves
       set xcor item 0 c
       set ycor item 1 c
       set heading item 2 c
-      table:put first-moves who one-of wolf-actions
+;      table:put first-moves who one-of wolf-actions
     ]
   ]
 end
@@ -124,7 +170,7 @@ to setup-sheep
       set xcor item 0 c
       set ycor item 1 c
       set heading item 2 c
-      table:put first-moves who one-of sheep-actions
+;      table:put first-moves who one-of sheep-actions
     ]
   ]
 end
@@ -181,12 +227,24 @@ to act [ actions ]
   let m 0
   ifelse ticks = 0 [
     set m table:get first-moves who
+;    show m
   ] [
     set m one-of actions
   ]
-  let res runresult m
-  if narrate? and self = ego [ print (word m ": " res) ]
-  set energy energy + res
+  set delta-energy runresult m
+  if narrate? and self = ego [ print (word m ": " delta-energy) ]
+  set energy energy + delta-energy
+end
+
+to-report pick-best [ results ]
+  let moves remove-duplicates map first results
+  let scores map [ m -> mean map last filter [ p -> first p = m ] results ] moves
+  let best max scores
+  (foreach moves scores [ [ m s ] ->
+    if s = best [
+      report m
+    ]
+  ])
 end
 
 to death
@@ -284,8 +342,8 @@ MONITOR
 170
 142
 215
-NIL
 energy
+[ energy ] of turtle 0
 17
 1
 11
@@ -295,8 +353,8 @@ MONITOR
 170
 82
 215
-NIL
 first-move
+table:get first-moves 0
 17
 1
 11
