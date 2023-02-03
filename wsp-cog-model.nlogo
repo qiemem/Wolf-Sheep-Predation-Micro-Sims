@@ -30,10 +30,14 @@ breed [ wolves wolf ]
 turtles-own [ energy delta-energy ]
 
 to-report run-micro-sims [ num-warmup num-sims sim-length ]
+  if max-pxcor != vision * 2 [
+    resize-world (- vision * 2) (vision * 2) (- vision * 2) (vision * 2)
+  ]
+
   set first-moves table:make
   set rewards table:make
   let results table:from-list [[0 []]]
-;  let results []
+
   repeat num-warmup [
     setup
     table:clear rewards
@@ -66,10 +70,10 @@ to-report run-micro-sims [ num-warmup num-sims sim-length ]
       table:put first-moves agent best-action
     ]
   ]
+  table:clear rewards
 
   repeat num-sims [
     setup
-    table:clear rewards
     if num-warmup = 0 [
       ask sheep [
         table:put first-moves who one-of sheep-actions
@@ -91,11 +95,9 @@ to-report run-micro-sims [ num-warmup num-sims sim-length ]
 end
 
 to setup
-  if max-pxcor != vision * 2 [
-    resize-world (- vision * 2) (vision * 2) (- vision * 2) (vision * 2)
-  ]
   ct
-  cp
+;  cp
+  ask patches [ set pcolor black ]
 
   set cur-discount reward-discount
 
@@ -140,12 +142,11 @@ to setup
 end
 
 to setup-grass
-;  ask patches [ ifelse random-float 1 < grass-density [ set pcolor green ] [ set pcolor brown ] ]
-  foreach live-grass-coords [ c ->
-    ask patch first c last c [ set pcolor green ]
+  ask patches at-points live-grass-coords [
+    set pcolor green
   ]
-  foreach dead-grass-coords [ c ->
-    ask patch first c last c [ set pcolor brown ]
+  ask patches at-points dead-grass-coords [
+    set pcolor brown
   ]
 end
 
@@ -208,11 +209,11 @@ to go
     ]
     table:put rewards (first pair) (last pair) + r * cur-discount
   ]
+  set cur-discount cur-discount * reward-discount
 
   if ego = nobody and narrate? [ ; ego is dead
     print "died"
   ]
-  set cur-discount cur-discount * reward-discount
   tick
 end
 

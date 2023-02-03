@@ -217,14 +217,14 @@ end
 
 to-report simulate [ vision warmup num dur see-sheep? see-wolves? see-grass? ]
   ifelse num > 1 and dur > 0 and (see-sheep? or see-wolves? or see-grass?) [
-    setup-mind vision see-sheep? see-wolves? see-grass?
+    init-mind vision see-sheep? see-wolves? see-grass?
     report (ls:report 0 [ [w n d] -> run-micro-sims w n d ] warmup num dur)
   ] [
     report []
   ]
 end
 
-to setup-mind [ vision see-sheep? see-wolves? see-grass? ]
+to init-mind [ vision see-sheep? see-wolves? see-grass? ]
   if empty? ls:models [
     ls:create-models 1 "wsp-cog-model.nlogo"
     ls:assign 0 wolf-actions wolf-actions
@@ -232,11 +232,17 @@ to setup-mind [ vision see-sheep? see-wolves? see-grass? ]
     ls:assign 0 narrate? false
   ]
   ls:let dp death-penalty
-  ls:let wcs [ rel-cors ] of ifelse-value see-wolves? [ other wolves in-radius vision ] [ no-turtles ]
-  ls:let scs [ rel-cors ] of ifelse-value see-sheep? [ other sheep in-radius vision ] [ no-turtles ]
-  let grass-in-vision ifelse-value see-grass? [ patches in-radius vision ] [ no-patches ]
-  ls:let lgcs [ rel-pcors ] of grass-in-vision with [ pcolor = green ]
-  ls:let dgcs [ rel-pcors ] of grass-in-vision with [ pcolor = brown ]
+
+  let visible-patches patches in-radius vision
+  ls:let wcs [ rel-cors ] of ifelse-value see-wolves? [ other wolves-on visible-patches ] [ no-turtles ]
+  ls:let scs [ rel-cors ] of ifelse-value see-sheep? [ other sheep-on visible-patches ] [ no-turtles ]
+  ifelse see-grass? [
+    ls:let lgcs [ rel-pcors ] of visible-patches with [ pcolor = green ]
+    ls:let dgcs [ rel-pcors ] of visible-patches with [ pcolor = brown ]
+  ] [
+    ls:let lgcs []
+    ls:let dgcs []
+  ]
 
   ls:let my-energy energy
   ls:let my-xcor (xcor - pxcor)
@@ -266,7 +272,6 @@ to setup-mind [ vision see-sheep? see-wolves? see-grass? ]
     set wolf-gain-from-food wgff
     set vision v
     set grass-density ifelse-value empty? lgcs [ 0.5 ] [ length lgcs / (length dgcs + length lgcs) ]
-;    setup
   ]
 end
 
@@ -282,9 +287,9 @@ to-report can-see-sheep?
   report ifelse-value is-a-sheep? self [ sheep-see-sheep? ] [ wolves-see-sheep? ]
 end
 
-;to-report rel-cors
-;  report (list (rel-xcor xcor) (rel-ycor ycor) heading)
-;end
+to-report rel-cors
+  report (list (rel-xcor xcor) (rel-ycor ycor) heading)
+end
 
 to-report rel-pcors
   report list (rel-xcor pxcor) (rel-ycor pycor)
@@ -308,11 +313,11 @@ to-report rel-ycor [ y ]
   )
 end
 
-to-report rel-cors
-  let t towards myself
-  let d 0 - distance myself
-  report (list (d * sin t) (d * cos t) heading)
-end
+;to-report rel-cors
+;  let t towards [ patch-here ] of myself
+;  let d 0 - distance [ patch-here ] of myself
+;  report (list (d * sin t) (d * cos t) heading)
+;end
 
 to reproduce [ threshold ]
   let baby-energy round (threshold * newborn-energy)
@@ -366,7 +371,7 @@ to record-micro-sims
   ls:let id who
   ls:let n n
   ls:let l l
-  setup-mind vision see-sheep? see-wolves? see-grass?
+  init-mind vision see-sheep? see-wolves? see-grass?
   ls:ask 0 [
 
     foreach range n [ r ->
@@ -399,7 +404,6 @@ end
 to-report is-grass?
   report pcolor = green
 end
-
 
 ; Copyright 1997 Uri Wilensky.
 ; See Info tab for full copyright and license.
@@ -708,7 +712,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-12.0
+6.0
 1
 1
 NIL
@@ -825,7 +829,7 @@ SWITCH
 253
 sheep-see-sheep?
 sheep-see-sheep?
-1
+0
 1
 -1000
 
@@ -886,7 +890,7 @@ wolf-sim-warmup
 wolf-sim-warmup
 0
 50
-0.0
+6.0
 1
 1
 NIL
