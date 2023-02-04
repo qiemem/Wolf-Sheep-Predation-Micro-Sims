@@ -72,7 +72,7 @@ to-report run-micro-sims [ num-warmup num-sims sim-length ]
   ]
   table:clear rewards
 
-  repeat num-sims [
+  repeat (num-sims - num-warmup) [
     setup
     if num-warmup = 0 [
       ask sheep [
