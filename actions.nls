@@ -20,7 +20,7 @@ to-report eat-sheep  ; wolf procedure
   let prey one-of sheep-here
   if prey != nobody  [
     let gain round (wolf-gain-from-food * [ energy ] of prey)
-    ask prey [ sheep-get-eaten ]
+    ask prey [ sheep-die ]
     report gain
   ]
   report 0

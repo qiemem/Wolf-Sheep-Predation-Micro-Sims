@@ -177,15 +177,11 @@ to setup-sheep
 end
 
 to go
-  if ego = nobody [
-    stop
-  ]
-  let last-energy [ energy ] of ego
-  ask sheep [
-    act sheep-actions
-  ]
   ask wolves [
     act wolf-actions
+  ]
+  ask sheep [
+    act sheep-actions
   ]
   if ego != nobody [
     ask ego [
@@ -258,7 +254,7 @@ to grass-get-eaten
   set pcolor brown
 end
 
-to sheep-get-eaten
+to sheep-die
   die
 end
 @#$#@#$#@

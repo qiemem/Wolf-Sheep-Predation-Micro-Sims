@@ -55,7 +55,7 @@ to sample-effs
 
   let s-esc-tick-mean mean seff-escape
   let s-esc-indiv-mean safe-div (sum (map * seff-escape spop)) (sum spop)
-
+  print (word "scheduling=" scheduling)
   print (word
     "Sheep:   tick-mean=" (precision s-tick-mean 2)
     " indiv-mean=" (precision s-indiv-mean 2)
@@ -136,38 +136,79 @@ to go
     let results simulate wolf-vision wolf-sim-warmup wolf-sim-n wolf-sim-l wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
     set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
   ]
+  (ifelse
+    scheduling = "wolves-sheep" [
+      go-wolves
+      go-sheep
+    ]
+    scheduling = "sheep-wolves" [
+      go-sheep
+      go-wolves
+    ]
+    [ go-both ]
+    )
 
-  let num-eligible-sheep count sheep
-  let available-grass grass
+  ask patches [ grow-grass ]
 
-  ask sheep [
-    act chosen-move
-    death
-    if energy > sheep-threshold [ reproduce sheep-threshold ]
-  ]
-  set sheep-efficiency safe-div sheep-efficiency num-eligible-sheep
+  tick
+end
 
+to go-wolves
   let num-eligible-wolves count wolves
   set patches-with-sheep count patches with [ any? sheep-here ]
   ask wolves [
-    let prob-of-eating patches-with-sheep / count patches
-    let num-sheep count sheep
-    act chosen-move
-    ifelse count sheep < num-sheep [
-      set wolf-efficiency wolf-efficiency + 1 / prob-of-eating
+    wolf-act
+  ]
+
+  set wolf-efficiency safe-div wolf-efficiency num-eligible-wolves
+  set sheep-escape-efficiency safe-div sheep-escape-efficiency num-eligible-wolves
+end
+
+to wolf-act
+  let prob-of-eating patches-with-sheep / count patches
+  let num-sheep count sheep
+  act chosen-move
+  ifelse count sheep < num-sheep [
+    set wolf-efficiency wolf-efficiency + 1 / prob-of-eating
+  ] [
+    set sheep-escape-efficiency sheep-escape-efficiency + 1 / (1 - prob-of-eating)
+  ]
+  death ; wolves die if our of energy
+  if energy > wolf-threshold [ reproduce wolf-threshold ]
+end
+
+to sheep-act
+  act chosen-move
+  death
+  if energy > sheep-threshold [ reproduce sheep-threshold ]
+end
+
+to go-sheep
+  let num-eligible-sheep count sheep
+  ask sheep [
+    sheep-act
+  ]
+  set sheep-efficiency safe-div sheep-efficiency num-eligible-sheep
+end
+
+to go-both
+  let num-eligible-sheep 0
+  let num-eligible-wolves count wolves
+  set patches-with-sheep count patches with [ any? sheep-here ]
+
+  ask turtles [
+    ifelse breed = sheep [
+      set num-eligible-sheep num-eligible-sheep + 1
+      sheep-act
     ] [
-      set sheep-escape-efficiency sheep-escape-efficiency + 1 / (1 - prob-of-eating)
+      wolf-act
     ]
-    death ; wolves die if our of energy
-    if energy > wolf-threshold [ reproduce wolf-threshold ]
   ]
 
   set wolf-efficiency safe-div wolf-efficiency num-eligible-wolves
   set sheep-escape-efficiency safe-div sheep-escape-efficiency num-eligible-wolves
 
-  ask patches [ grow-grass ]
-
-  tick
+  set sheep-efficiency safe-div sheep-efficiency num-eligible-sheep
 end
 
 to grass-get-eaten
@@ -177,10 +218,7 @@ to grass-get-eaten
 end
 
 to sheep-get-eaten
-  if not any? other sheep-here [
-    set patches-with-sheep patches-with-sheep - 1
-  ]
-  die
+  sheep-die
 end
 
 to act [ action ]
@@ -230,6 +268,7 @@ to init-mind [ vision see-sheep? see-wolves? see-grass? ]
     ls:assign 0 wolf-actions wolf-actions
     ls:assign 0 sheep-actions sheep-actions
     ls:assign 0 narrate? false
+    ls:assign 0 scheduling scheduling
   ]
   ls:let dp death-penalty
 
@@ -326,12 +365,22 @@ to reproduce [ threshold ]
     set energy baby-energy
     rt random-float 360
     fd 1
+    if breed = sheep and not any? other sheep-here [
+      set patches-with-sheep patches-with-sheep + 1
+    ]
   ]
+end
+
+to sheep-die
+  if not any? other sheep-here [
+    set patches-with-sheep patches-with-sheep - 1
+  ]
+  die
 end
 
 to death  ; turtle procedure (i.e. both wolf nd sheep procedure)
   ; when energy dips below zero, die
-  if energy < 0 [ die ]
+  if energy < 0 [ sheep-die ]
 end
 
 to grow-grass  ; patch procedure
@@ -452,9 +501,9 @@ HORIZONTAL
 
 SLIDER
 0
-150
+165
 175
-183
+198
 sheep-gain-from-food
 sheep-gain-from-food
 0.0
@@ -482,9 +531,9 @@ HORIZONTAL
 
 SLIDER
 0
-115
+130
 175
-148
+163
 grass-regrowth-time
 grass-regrowth-time
 0
@@ -497,9 +546,9 @@ HORIZONTAL
 
 BUTTON
 0
-80
+95
 69
-113
+128
 setup
 setup
 NIL
@@ -514,9 +563,9 @@ NIL
 
 BUTTON
 70
-80
+95
 145
-113
+128
 go
 go
 T
@@ -573,9 +622,9 @@ count wolves
 
 SLIDER
 0
-325
+340
 175
-358
+373
 sheep-vision
 sheep-vision
 0
@@ -588,9 +637,9 @@ HORIZONTAL
 
 SLIDER
 175
-325
+340
 350
-358
+373
 wolf-vision
 wolf-vision
 0
@@ -645,9 +694,9 @@ table:get smoothed-values \"seff-6\"
 
 SLIDER
 0
-185
+200
 175
-218
+233
 sheep-threshold
 sheep-threshold
 0
@@ -660,9 +709,9 @@ HORIZONTAL
 
 SLIDER
 175
-185
+200
 350
-218
+233
 wolf-threshold
 wolf-threshold
 0
@@ -675,9 +724,9 @@ HORIZONTAL
 
 SLIDER
 0
-395
+410
 175
-428
+443
 sheep-sim-n
 sheep-sim-n
 1
@@ -690,9 +739,9 @@ HORIZONTAL
 
 SLIDER
 0
-430
+445
 175
-463
+478
 sheep-sim-l
 sheep-sim-l
 1
@@ -705,9 +754,9 @@ HORIZONTAL
 
 SLIDER
 175
-395
+410
 350
-428
+443
 wolf-sim-n
 wolf-sim-n
 1
@@ -720,9 +769,9 @@ HORIZONTAL
 
 SLIDER
 175
-430
+445
 350
-463
+478
 wolf-sim-l
 wolf-sim-l
 1
@@ -734,10 +783,10 @@ NIL
 HORIZONTAL
 
 INPUTBOX
-90
-465
-250
-525
+175
+480
+335
+540
 death-penalty
 -10.0
 1
@@ -746,9 +795,9 @@ Number
 
 SLIDER
 175
-150
+165
 350
-183
+198
 wolf-gain-from-food
 wolf-gain-from-food
 0
@@ -761,9 +810,9 @@ HORIZONTAL
 
 SLIDER
 175
-115
+130
 350
-148
+163
 newborn-energy
 newborn-energy
 0
@@ -802,9 +851,9 @@ table:get smoothed-values \"escape-6\"
 
 SWITCH
 0
-290
+305
 175
-323
+338
 sheep-see-grass?
 sheep-see-grass?
 0
@@ -813,9 +862,9 @@ sheep-see-grass?
 
 SWITCH
 0
-255
+270
 175
-288
+303
 sheep-see-wolves?
 sheep-see-wolves?
 0
@@ -824,9 +873,9 @@ sheep-see-wolves?
 
 SWITCH
 0
-220
+235
 175
-253
+268
 sheep-see-sheep?
 sheep-see-sheep?
 0
@@ -835,9 +884,9 @@ sheep-see-sheep?
 
 SWITCH
 175
-290
+305
 350
-323
+338
 wolves-see-grass?
 wolves-see-grass?
 0
@@ -846,9 +895,9 @@ wolves-see-grass?
 
 SWITCH
 175
-255
+270
 350
-288
+303
 wolves-see-wolves?
 wolves-see-wolves?
 0
@@ -857,9 +906,9 @@ wolves-see-wolves?
 
 SWITCH
 175
-220
+235
 350
-253
+268
 wolves-see-sheep?
 wolves-see-sheep?
 0
@@ -868,14 +917,14 @@ wolves-see-sheep?
 
 SLIDER
 0
-360
+375
 175
-393
+408
 sheep-sim-warmup
 sheep-sim-warmup
 0
 sheep-sim-n
-0.0
+6.0
 1
 1
 NIL
@@ -883,9 +932,9 @@ HORIZONTAL
 
 SLIDER
 175
-360
+375
 350
-393
+408
 wolf-sim-warmup
 wolf-sim-warmup
 0
@@ -898,9 +947,9 @@ HORIZONTAL
 
 BUTTON
 200
-80
+95
 312
-113
+128
 NIL
 sample-effs
 NIL
@@ -912,6 +961,16 @@ NIL
 NIL
 NIL
 1
+
+CHOOSER
+175
+45
+350
+90
+scheduling
+scheduling
+"sheep-wolves" "wolves-sheep" "all-at-once"
+2
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -2556,6 +2615,255 @@ setup</setup>
     <metric>sheep-efficiency</metric>
     <metric>sheep-escape-efficiency</metric>
     <metric>wolf-efficiency</metric>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="death-penalty">
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-grass-density">
+      <value value="0.35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="newborn-energy">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-sheep?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-grass?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-wolves?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-warmup">
+      <value value="0"/>
+      <value value="6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-n">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-l">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-sheep?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-grass?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-wolves?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-warmup">
+      <value value="0"/>
+      <value value="6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="3"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="2023-04-01-s-30x5-2000-all-at-once" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>patches-with-sheep</metric>
+    <metric>sheep-efficiency</metric>
+    <metric>sheep-escape-efficiency</metric>
+    <metric>wolf-efficiency</metric>
+    <enumeratedValueSet variable="scheduling">
+      <value value="&quot;all-at-once&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="death-penalty">
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-grass-density">
+      <value value="0.35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="newborn-energy">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-l">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-sheep?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-grass?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-wolves?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-sim-n">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-sheep?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-grass?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-wolves?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="sheep-sim-n" first="1" step="1" last="30"/>
+    <steppedValueSet variable="sheep-sim-l" first="1" step="1" last="5"/>
+  </experiment>
+  <experiment name="2023-01-16-w-30x5-2000-all-at-once" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>patches-with-sheep</metric>
+    <metric>sheep-efficiency</metric>
+    <metric>sheep-escape-efficiency</metric>
+    <metric>wolf-efficiency</metric>
+    <enumeratedValueSet variable="scheduling">
+      <value value="&quot;all-at-once&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-gain-from-food">
+      <value value="0.7"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-wolves">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-number-sheep">
+      <value value="50"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-vision">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="death-penalty">
+      <value value="-10"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolf-threshold">
+      <value value="70"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-gain-from-food">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="grass-regrowth-time">
+      <value value="30"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="initial-grass-density">
+      <value value="0.35"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="newborn-energy">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-sheep?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-grass?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="wolves-see-wolves?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="wolf-sim-n" first="1" step="1" last="30"/>
+    <steppedValueSet variable="wolf-sim-l" first="1" step="1" last="5"/>
+    <enumeratedValueSet variable="sheep-see-sheep?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-grass?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-see-wolves?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-n">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="sheep-sim-l">
+      <value value="0"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="2023-01-20-s-wu_0_6-n_12-l_3-w-wu_0_6-n_12-l_5-perception-sweep_all-at-once" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="2000"/>
+    <metric>count sheep</metric>
+    <metric>count wolves</metric>
+    <metric>grass</metric>
+    <metric>patches-with-sheep</metric>
+    <metric>sheep-efficiency</metric>
+    <metric>sheep-escape-efficiency</metric>
+    <metric>wolf-efficiency</metric>
+    <enumeratedValueSet variable="scheduling">
+      <value value="&quot;all-at-once&quot;"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="wolf-gain-from-food">
       <value value="0.7"/>
     </enumeratedValueSet>
