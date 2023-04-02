@@ -206,7 +206,13 @@ to wolf-act
 end
 
 to sheep-act
+  let was-alone? not any? other sheep-here
   act chosen-move
+  let is-alone? not any? other sheep-here
+  (ifelse
+    was-alone? and not is-alone? [ set patches-with-sheep patches-with-sheep - 1 ]
+    not was-alone? and is-alone? [ set patches-with-sheep patches-with-sheep + 1 ]
+  )
   death
   if energy > sheep-threshold [ reproduce sheep-threshold ]
 end
@@ -408,7 +414,9 @@ end
 
 to death  ; turtle procedure (i.e. both wolf nd sheep procedure)
   ; when energy dips below zero, die
-  if energy < 0 [ sheep-die ]
+  if energy < 0 [
+    ifelse is-a-sheep? self [ sheep-die ] [ die ]
+  ]
 end
 
 to grow-grass  ; patch procedure
@@ -759,7 +767,7 @@ sheep-sim-n
 sheep-sim-n
 1
 50
-12.0
+1.0
 1
 1
 NIL
@@ -789,7 +797,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-12.0
+30.0
 1
 1
 NIL
@@ -804,7 +812,7 @@ wolf-sim-l
 wolf-sim-l
 1
 wolf-vision
-3.0
+5.0
 1
 1
 NIL
