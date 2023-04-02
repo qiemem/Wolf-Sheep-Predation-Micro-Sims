@@ -27,7 +27,7 @@ globals [
 breed [ sheep a-sheep ]
 breed [ wolves wolf ]
 
-turtles-own [ energy delta-energy ]
+turtles-own [ energy delta-energy acted? ]
 
 to-report run-micro-sims [ num-warmup num-sims sim-length ]
   if max-pxcor != vision * 2 [
@@ -137,6 +137,7 @@ to setup
 ;    table:put first-moves who one-of (ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ])
   ]
 
+  ask turtles [ set acted? false ]
   if narrate? [ print "setup" ]
   reset-ticks
 end
@@ -177,12 +178,27 @@ to setup-sheep
 end
 
 to go
-  ask wolves [
-    act wolf-actions
-  ]
-  ask sheep [
-    act sheep-actions
-  ]
+  (ifelse
+    scheduling = "sheep-wolves" [
+      ask sheep [ act sheep-actions ]
+      ask wolves [ act wolf-actions ]
+    ]
+    scheduling = "wolves-sheep" [
+      ask wolves [ act wolf-actions ]
+      ask sheep [ act sheep-actions ]
+    ]
+    scheduling = "all-at-once" [
+      ask turtles [ act ifelse-value breed = sheep [ sheep-actions ] [ wolf-actions ] ]
+    ] [
+      ifelse ego-breed = "sheep" [
+        ask sheep [ act sheep-actions ]
+        ask wolves [ act wolf-actions ]
+      ] [
+        ask wolves [ act wolf-actions ]
+        ask sheep [ act sheep-actions ]
+      ]
+    ]
+  )
   if ego != nobody [
     ask ego [
       death
@@ -222,12 +238,13 @@ end
 
 to act [ actions ]
   let m 0
-  ifelse ticks = 0 [
+  ifelse not acted? [
     set m table:get first-moves who
 ;    show m
   ] [
     set m one-of actions
   ]
+  set acted? true
   set delta-energy runresult m
   if narrate? and self = ego [ print (word m ": " delta-energy) ]
   set energy energy + delta-energy
@@ -261,11 +278,11 @@ end
 GRAPHICS-WINDOW
 210
 10
-243
-44
+261
+62
 -1
 -1
-25.0
+43.0
 1
 10
 1
@@ -407,6 +424,16 @@ wolf-gain-from-food
 1
 NIL
 HORIZONTAL
+
+CHOOSER
+20
+290
+212
+335
+scheduling
+scheduling
+"sheep-wolves" "wolves-sheep" "all-at-once" "sheep-wolves-smart" "wolves-sheep-smart"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
