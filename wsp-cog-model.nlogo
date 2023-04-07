@@ -71,6 +71,7 @@ to-report run-micro-sims [ num-warmup num-sims sim-length ]
     ]
   ]
   table:clear rewards
+  if not track-ego-on-wu? [ table:put results 0 [] ]
 
   repeat (num-sims - num-warmup) [
     setup
@@ -434,6 +435,17 @@ scheduling
 scheduling
 "sheep-wolves" "wolves-sheep" "all-at-once" "sheep-wolves-smart" "wolves-sheep-smart"
 0
+
+SWITCH
+10
+340
+187
+373
+track-ego-on-wu?
+track-ego-on-wu?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
