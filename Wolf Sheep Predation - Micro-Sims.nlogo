@@ -798,7 +798,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-12.0
+1.0
 1
 1
 NIL
@@ -813,7 +813,7 @@ wolf-sim-l
 wolf-sim-l
 1
 wolf-vision
-3.0
+1.0
 1
 1
 NIL
@@ -1007,7 +1007,7 @@ CHOOSER
 scheduling
 scheduling
 "sheep-wolves" "wolves-sheep" "all-at-once" "sheep-wolves-smart" "wolves-sheep-smart"
-3
+0
 
 SWITCH
 0
