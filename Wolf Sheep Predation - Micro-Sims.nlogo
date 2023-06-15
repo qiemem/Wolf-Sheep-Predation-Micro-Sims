@@ -798,7 +798,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-1.0
+12.0
 1
 1
 NIL
@@ -813,7 +813,7 @@ wolf-sim-l
 wolf-sim-l
 1
 wolf-vision
-1.0
+3.0
 1
 1
 NIL
@@ -825,7 +825,7 @@ INPUTBOX
 350
 540
 death-penalty
--10.0
+0.0
 1
 0
 Number
@@ -1007,7 +1007,7 @@ CHOOSER
 scheduling
 scheduling
 "sheep-wolves" "wolves-sheep" "all-at-once" "sheep-wolves-smart" "wolves-sheep-smart"
-0
+2
 
 SWITCH
 0
