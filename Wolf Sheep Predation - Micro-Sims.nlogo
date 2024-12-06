@@ -825,7 +825,7 @@ INPUTBOX
 350
 540
 death-penalty
-10.0
+-10.0
 1
 0
 Number
