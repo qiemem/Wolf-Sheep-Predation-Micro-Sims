@@ -63,7 +63,7 @@ to sample-effs
     " pop-std=" (precision standard-deviation spop 2)
     " sheep-params=" (list sheep-sim-warmup sheep-sim-n sheep-sim-l)
   )
-  print (word "Sheepesc tick-mean=" (precision s-esc-tick-mean 2) " indiv-mean=" (precision s-esc-indiv-mean 2))
+  print (word "Sheepesc tick-mean=" (precision s-esc-tick-mean 4) " indiv-mean=" (precision s-esc-indiv-mean 4))
   print (word
     "Wolves:  tick-mean=" (precision w-tick-mean 2)
     " indiv-mean=" (precision w-indiv-mean 2)
@@ -117,6 +117,10 @@ to setup
   ]
 
   set grass count patches with [ pcolor = green ]
+
+  set sheep-efficiency 1
+  set wolf-efficiency 1
+  set sheep-escape-efficiency 1
 
   reset-ticks
 end
@@ -387,12 +391,6 @@ to-report rel-ycor [ y ]
   )
 end
 
-;to-report rel-cors
-;  let t towards [ patch-here ] of myself
-;  let d 0 - distance [ patch-here ] of myself
-;  report (list (d * sin t) (d * cos t) heading)
-;end
-
 to reproduce [ threshold ]
   let baby-energy round (threshold * newborn-energy)
   set energy energy - baby-energy
@@ -480,7 +478,6 @@ to-report smoothed-val [ name cur-value poles c ]
   foreach range poles [ i ->
     let var (word name "-" (1 + i))
     let last-value table:get-or-default smoothed-values var cur-value
-    let zero? cur-value = 0
     set cur-value last-value + c * (cur-value - last-value)
     table:put smoothed-values var cur-value
   ]
@@ -1023,45 +1020,53 @@ track-ego-on-wu?
 @#$#@#$#@
 ## WHAT IS IT?
 
-This model explores the stability of predator-prey ecosystems. Such a system is called unstable if it tends to result in extinction for one or more species involved.  In contrast, a system is stable if it tends to maintain itself over time, despite fluctuations in population sizes.
+This model extends the Wolf Sheep Predation model by giving the wolves and sheep the ability to make decisions based on predictions the possible outcomes of their actions. To do so, they run simplified miniature versions of the Wolf Sheep Predation model that only consider their immediate surroudings using the LevelSpace extension.
 
 ## HOW IT WORKS
 
-There are two main variations to this model.
+This model consists of two component models connected using LevelSpace. The primary model is based on the standard Wolf Sheep Predation model with several modifications to improve system robustness across a variety of agent behaviors.. Just as in the original model, the model consists of wolves, sheep, and ground patches, which may or may not have have grass. Each step, the wolves and sheep must choose a direction to move in: left, right, or forward. If a wolf finds a sheep, it eats the sheep, gaining energy based on the energy of the sheep. If a sheep finds grass, it eats the grass, gaining some energy. If the energy of a wolf or sheep exceeds a threshold, it reproduces, giving some of its energy to its child. Each step costs the wolves and sheep one energy; if they run out of energy, they die.
 
-In the first variation, the "sheep-wolves" version, wolves and sheep wander randomly around the landscape, while the wolves look for sheep to prey on. Each step costs the wolves energy, and they must eat sheep in order to replenish their energy - when they run out of energy they die. To allow the population to continue, each wolf or sheep has a fixed probability of reproducing at each time step. In this variation, we model the grass as "infinite" so that sheep always have enough to eat, and we don't explicitly model the eating or growing of grass. As such, sheep don't either gain or lose energy by eating or moving. This variation produces interesting population dynamics, but is ultimately unstable. This variation of the model is particularly well-suited to interacting species in a rich nutrient environment, such as two strains of bacteria in a petri dish (Gause, 1934).
+In order to decide which direction to move in, the wolves and sheep make use of the second model, called the cognitive model. The cognitive model uses a simplified form of the Wolf Sheep Predation rules: wolves still eat sheep and sheep still eat grass, but agents do not reproduce, nor does grass regrow. Instead, an agent in the primary model initializes the child model based on the locations of the grass and the other agents around them. It creates a represention of itself in the cognitive model based on its location and energy level. This representation is called the ego. The cognitive model will then perform multiple simulations of only a couple ticks each from that state. In those simulations, the agents all make random decisions. The cognitive model keeps track of the initial action the ego makes in each simulation and computes an expected reward for that action based on how much its energy ended up changing and whether or not it died. The agent in the primary model will then select the action that performed the best in the cognitive model.
 
-The second variation, the "sheep-wolves-grass" version explictly models grass (green) in addition to wolves and sheep. The behavior of the wolves is identical to the first variation, however this time the sheep must eat grass in order to maintain their energy - when they run out of energy they die. Once grass is eaten it will only regrow after a fixed amount of time. This variation is more complex than the first, but it is generally stable. It is a closer match to the classic Lotka Volterra population oscillation models. The classic LV models though assume the populations can take on real values, but in small populations these models underestimate extinctions and agent-based models such as the ones here, provide more realistic results. (See Wilensky & Rand, 2015; chapter 4).
-
-The construction of this model is described in two papers by Wilensky & Reisman (1998; 2006) referenced below.
+In order to measure how the cognitive model impacts agent performance, the model measure "agent efficiency". To measure wolf and sheep food seeking efficiency, this measures the ratio of how much food the species ate versus how much we would expect them to eat if positioned randomly given current population densities.To measure how well sheep escape being eaten by wolves, it computes how many sheep survive versus how many we would expect to survive. This allows us to measure the performance of agents that mostly controls for the complex population dynamics of a predator prey system. See chapter 4 of Head (2024) for a detailed discussion of the design of these metrics.
 
 ## HOW TO USE IT
 
-1. Set the model-version chooser to "sheep-wolves-grass" to include grass eating and growth in the model, or to "sheep-wolves" to only include wolves (black) and sheep (white).
-2. Adjust the slider parameters (see below), or use the default settings.
-3. Press the SETUP button.
-4. Press the GO button to begin the simulation.
-5. Look at the monitors to see the current population sizes
-6. Look at the POPULATIONS plot to watch the populations fluctuate over time
+1. Adjust the slider parameters (see below), or use the default settings.
+2. Press the SETUP button.
+3. Press the GO button to begin the simulation.
+4. Look at the monitors to see the current population sizes
+5. Look at the POPULATIONS plot to watch the populations fluctuate over time
+6. Look at the SMOOTHED EFFICIENCY plot to watch how the efficiency measurements settle.
+7. Change either the wolf or sheep cognitive parameters; watch how the efficiency measurements change in response. 
 
 Parameters:
-MODEL-VERSION: Whether we model sheep wolves and grass or just sheep and wolves
 INITIAL-NUMBER-SHEEP: The initial size of sheep population
 INITIAL-NUMBER-WOLVES: The initial size of wolf population
-SHEEP-GAIN-FROM-FOOD: The amount of energy sheep get for every grass patch eaten (Note this is not used in the sheep-wolves model version)
-WOLF-GAIN-FROM-FOOD: The amount of energy wolves get for every sheep eaten
-SHEEP-REPRODUCE: The probability of a sheep reproducing at each time step
-WOLF-REPRODUCE: The probability of a wolf reproducing at each time step
-GRASS-REGROWTH-TIME: How long it takes for grass to regrow once it is eaten (Note this is not used in the sheep-wolves model version)
-SHOW-ENERGY?: Whether or not to show the energy of each animal as a number
+INITIAL-GRASS-DENSITY: The ratio of patches that will be initially be covered in grass
+SCHEDULING: Defines what order the agents choose and carry out their actions. The options are as follows:
+- SHEEP-WOLVES: Both species select their actions, then all sheep act, then all wolves act.
+- WOLVES-SHEEP: Both species select their actions, then all wolves act, then all sheep act.
+- ALL-AT-ONCE: Both species select their actions, then all agents act in a random order.
+- SHEEP-WOLVES-SMART: Sheep select their actions, then sheep act, then wolves select their actions, then wolves act.
+- WOLVES-SHEEP-SMART: Wolves select their actions, then wolves act, then sheep select their actions, then sheep act.
+GRASS-REGROWTH-TIME: How long it takes for grass to regrow once it is eaten.
+NEWBORN-ENERGY: The ratio of a parent's energy given to a newborn child upon reproduction.
+SHEEP-GAIN-FROM-FOOD: The amount of energy sheep get for every grass patch eaten
+WOLF-GAIN-FROM-FOOD: The ratio of a sheep's energy the wolf gains when it eats that sheep.
+SHEEP-THRESHOLD: The energy level at which sheep reproduce.
+WOLF-THRESHOLD: The energy level at which the wolves reproduce.
 
-Notes:
-- one unit of energy is deducted for every step a wolf takes
-- when running the sheep-wolves-grass model version, one unit of energy is deducted for every step a sheep takes
-
-There are three monitors to show the populations of the wolves, sheep and grass and a populations plot to display the population values over time.
-
-If there are no wolves left and too many sheep, the model run stops.
+Cognitive parameters: These parameters control the behavior of the cognitive model for the specified species; they behave equivalently for each species so are listed here only once:
+<species>-SEE-SHEEP?: Whether the species will use sheep in its cognitive model.
+<species>-SEE-WOLVES?: Whether the species will use wolves in its cognitive model.
+<species>-SEE-GRASS?: Whether the species will use grass in its cognitive model.
+<species>-VISION: The radius around an agent in which it will include other agents in its cognitive model.
+<species>-SIM-WARMUP: The number of initial simulations the species performs to compute the likely actions of those around it. See extensions.
+<species>-SIM-N: The number of simulations the species will run in its cognitive model.
+<species>-SIM-L: The number of ticks the species will run the simulations of its cognitive model for.
+TRACK-EGO-ON-WU?: Whether to use the outcomes of the ego found during warmup simulations in the agents final decision in the primary model.
+DEATH-PENALTY: How much to penalize death in the cognitive model. 
 
 ## THINGS TO NOTICE
 
@@ -1448,7 +1453,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.3.0
+NetLogo 6.4.0
 @#$#@#$#@
 set model-version "sheep-wolves-grass"
 set show-energy? false
