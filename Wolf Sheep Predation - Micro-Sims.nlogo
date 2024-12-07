@@ -1,20 +1,21 @@
-extensions [ ls profiler table ]
+extensions [ ls table ]
 
+; The available basic behaviors of wolves and sheep are put in a separate nls file so that the primary and cognitive model use the same behaviors.
 __includes [ "actions.nls" ]
 
 
 globals [
-  sheep-actions
-  wolf-actions
+  sheep-actions ; list of actions that each sheep can choose from each step
+  wolf-actions ; list of actions that wolves can choose from each step
 
-  patches-with-sheep
-  grass
+  patches-with-sheep ; number of patches containing at least one sheep; used for computing wolf efficiency
+  grass ; number of patches with grass
 
   sheep-efficiency
   wolf-efficiency
   sheep-escape-efficiency
 
-  smoothed-values
+  smoothed-values ; table used for smoothing efficiency statistics for graphing
 ]
 
 ; Sheep and wolves are both breeds of turtle.
@@ -23,56 +24,8 @@ breed [ wolves wolf ]
 turtles-own [
   energy
   chosen-move
-]       ; both wolves and sheep have energy
+]
 patches-own [ countdown ]
-
-to sample-effs
-  reset-timer
-  setup
-  let n 1000
-  let weff []
-  let seff []
-  let wpop []
-  let spop []
-  let gpop []
-
-  let seff-escape []
-
-  while [ ticks < n and any? turtles ] [
-    set spop lput count sheep spop
-    set wpop lput count wolves wpop
-    set gpop lput grass gpop
-    go
-    set weff lput wolf-efficiency weff
-    set seff lput sheep-efficiency seff
-    set seff-escape lput sheep-escape-efficiency seff-escape
-  ]
-  print (word "Runtime: " timer)
-  let w-tick-mean mean weff
-  let s-tick-mean mean seff
-  let w-indiv-mean safe-div (sum (map * weff wpop)) (sum wpop)
-  let s-indiv-mean safe-div (sum (map * seff spop)) (sum spop)
-
-  let s-esc-tick-mean mean seff-escape
-  let s-esc-indiv-mean safe-div (sum (map * seff-escape spop)) (sum spop)
-  print (word "scheduling=" scheduling)
-  print (word
-    "Sheep:   tick-mean=" (precision s-tick-mean 2)
-    " indiv-mean=" (precision s-indiv-mean 2)
-    " pop-mean=" (precision mean spop 2)
-    " pop-std=" (precision standard-deviation spop 2)
-    " sheep-params=" (list sheep-sim-warmup sheep-sim-n sheep-sim-l)
-  )
-  print (word "Sheepesc tick-mean=" (precision s-esc-tick-mean 4) " indiv-mean=" (precision s-esc-indiv-mean 4))
-  print (word
-    "Wolves:  tick-mean=" (precision w-tick-mean 2)
-    " indiv-mean=" (precision w-indiv-mean 2)
-    " pop-mean=" (precision mean wpop 2)
-    " pop-std=" (precision standard-deviation wpop 2)
-    " wolf-params=" (list wolf-sim-warmup wolf-sim-n wolf-sim-l)
-  )
-  print (word "Grass:   pop-std=" (precision standard-deviation gpop 2))
-end
 
 to setup
   ls:reset
@@ -80,6 +33,9 @@ to setup
 
   set smoothed-values table:make
 
+  ; Define the available actions as strings of code so that they can be passed between models
+  ; The component behavior (MOVE, EAT-GRASS, TURN, EAT-SHEEP) are defined in actions.nls.
+  ; Each behavior reports the amount of energy it uses or gains; thus, adding them together gives the total change in energy for the agent.
   set sheep-actions [
     "(move 1) + (eat-grass)"
     "(turn 30) + (move 1) + (eat-grass)"
@@ -132,106 +88,35 @@ to go
   set wolf-efficiency 0
   set sheep-escape-efficiency 0
 
-
-
-  (ifelse
-    scheduling = "wolves-sheep" [
-      sheep-choose-actions
-      wolves-choose-actions
-      go-wolves
-      go-sheep
-    ]
-    scheduling = "sheep-wolves" [
-      sheep-choose-actions
-      wolves-choose-actions
-      go-sheep
-      go-wolves
-    ]
-    scheduling = "all-at-once" [
-      sheep-choose-actions
-      wolves-choose-actions
-      go-both
-    ]
-    scheduling = "wolves-sheep-smart" [
-      wolves-choose-actions
-      go-wolves
-      sheep-choose-actions
-      go-sheep
-    ]
-    scheduling = "sheep-wolves-smart" [
-      sheep-choose-actions
-      go-sheep
-      wolves-choose-actions
-      go-wolves
-    ]
-  )
-
+  ; Wolves and sheep choose actions before any agent acts so that they are all working from the same amount of information.
+  ; If the individual agents choose actions immediately before acting, we have to track which agents have acted and which
+  ; haven't in order for the cognitive model to not be a step behind for some portion of the other agents, dramatically
+  ; increasing complexity. Alternative methods of scheduling include, for instance, having sheep choose actions, then
+  ; having sheep act, then having wolves choose actions, then having wolves act. See Chapter 7 in Head (2024) for a detailed
+  ; description of scheduling strategies.
+  ask sheep [ sheep-choose-action ]
+  ask wolves [ wolf-choose-action ]
+  wolves-and-sheep-act
   ask patches [ grow-grass ]
 
   tick
 end
 
-to sheep-choose-actions
-  ask sheep [
-    let results simulate sheep-vision sheep-sim-warmup sheep-sim-n sheep-sim-l sheep-see-sheep? sheep-see-wolves? sheep-see-grass?
-    set chosen-move ifelse-value empty? results [ one-of sheep-actions ] [ pick-best results ]
-  ]
+to sheep-choose-action
+  let results simulate sheep-vision sheep-sim-n sheep-sim-l sheep-death-penalty sheep-see-sheep? sheep-see-wolves? sheep-see-grass?
+  set chosen-move ifelse-value empty? results [ one-of sheep-actions ] [ pick-best results ]
 end
 
-to wolves-choose-actions
-    ask wolves [
-    let results simulate wolf-vision wolf-sim-warmup wolf-sim-n wolf-sim-l wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
-    set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
-  ]
+to wolf-choose-action
+  let results simulate wolf-vision wolf-sim-n wolf-sim-l wolf-death-penalty wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
+  set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
 end
 
-to go-wolves
-  let num-eligible-wolves count wolves
-  set patches-with-sheep count patches with [ any? sheep-here ]
-  ask wolves [
-    wolf-act
-  ]
-
-  set wolf-efficiency safe-div wolf-efficiency num-eligible-wolves
-  set sheep-escape-efficiency safe-div sheep-escape-efficiency num-eligible-wolves
-end
-
-to wolf-act
-  let prob-of-eating patches-with-sheep / count patches
-  let num-sheep count sheep
-  act chosen-move
-  ifelse count sheep < num-sheep [
-    set wolf-efficiency wolf-efficiency + 1 / prob-of-eating
-  ] [
-    set sheep-escape-efficiency sheep-escape-efficiency + 1 / (1 - prob-of-eating)
-  ]
-  death ; wolves die if our of energy
-  if energy > wolf-threshold [ reproduce wolf-threshold ]
-end
-
-to sheep-act
-  let was-alone? not any? other sheep-here
-  act chosen-move
-  let is-alone? not any? other sheep-here
-  (ifelse
-    was-alone? and not is-alone? [ set patches-with-sheep patches-with-sheep - 1 ]
-    not was-alone? and is-alone? [ set patches-with-sheep patches-with-sheep + 1 ]
-  )
-  death
-  if energy > sheep-threshold [ reproduce sheep-threshold ]
-end
-
-to go-sheep
-  let num-eligible-sheep count sheep
-  ask sheep [
-    sheep-act
-  ]
-  set sheep-efficiency safe-div sheep-efficiency num-eligible-sheep
-end
-
-to go-both
-  let num-eligible-sheep 0
-  let num-eligible-wolves count wolves
+to wolves-and-sheep-act
+  ; Initialize factors used in computing species efficiency. Each factor must be kept up to date throughout the tick to
+  ; reflect the state of the model when each agent acts.
+  let num-eligible-sheep 0 ; number of sheep who lived long enough to act
+  let num-eligible-wolves count wolves ; Wolves can't die before acting, so we can compute number of wolves acting here.
   set patches-with-sheep count patches with [ any? sheep-here ]
 
   ask turtles [
@@ -243,10 +128,44 @@ to go-both
     ]
   ]
 
+  ; Normalize aggregated efficiency values by the number of agents who acted.
   set wolf-efficiency safe-div wolf-efficiency num-eligible-wolves
   set sheep-escape-efficiency safe-div sheep-escape-efficiency num-eligible-wolves
-
   set sheep-efficiency safe-div sheep-efficiency num-eligible-sheep
+end
+
+to wolf-act
+  ; Efficiency is effectively the ratio between what proportion of agents ate and their probability of randomly eating
+  ; based on on population densities. However, those population densities change throughout a tick, so we have to compute
+  ; them at the time the agent acts.
+  let prob-of-eating patches-with-sheep / count patches
+  let num-sheep count sheep
+  act chosen-move
+  ; Detect if the wolf successfully at a sheep. The only way the number of sheep can change during the wolf's action is
+  ; if the wolf eats a sheep. Using COUNT SHEEP rather than COUNT SHEEP-HERE means that this calculation will still be
+  ; correct if we allow wolves to eat that are not only on the pach (e.g. in a radius around the wolf). It should not
+  ; impact performance.
+  ifelse count sheep < num-sheep [
+    set wolf-efficiency wolf-efficiency + 1 / prob-of-eating
+  ] [
+    set sheep-escape-efficiency sheep-escape-efficiency + 1 / (1 - prob-of-eating)
+  ]
+  death ; wolves die if out of energy
+  if energy > wolf-threshold [ reproduce wolf-threshold ]
+end
+
+to sheep-act
+  ; The number of patches with sheep must be kept up to date and COUNT PATCHES WITH [ ANY? SHEEP-HERE ] is expensive. Hence,
+  ; update it based on the sheep's movement.
+  let was-alone? not any? other sheep-here
+  act chosen-move
+  let is-alone? not any? other sheep-here
+  (ifelse
+    was-alone? and not is-alone? [ set patches-with-sheep patches-with-sheep - 1 ]
+    not was-alone? and is-alone? [ set patches-with-sheep patches-with-sheep + 1 ]
+  )
+  death
+  if energy > sheep-threshold [ reproduce sheep-threshold ]
 end
 
 to grass-get-eaten
@@ -255,11 +174,8 @@ to grass-get-eaten
   set pcolor brown
 end
 
-to sheep-get-eaten
-  sheep-die
-end
-
 to act [ action ]
+  ; Actions report the change in energy they cause.
   set energy energy + runresult action
 end
 
@@ -291,25 +207,24 @@ to-report safe-div [ num den ]
   report num / den
 end
 
-to-report simulate [ vision warmup num dur see-sheep? see-wolves? see-grass? ]
+to-report simulate [ vision num dur death-penalty see-sheep? see-wolves? see-grass? ]
   ifelse num > 1 and dur > 0 and (see-sheep? or see-wolves? or see-grass?) [
-    init-mind vision see-sheep? see-wolves? see-grass?
-    report (ls:report 0 [ [w n d] -> run-micro-sims w n d ] warmup num dur)
+    init-mind vision see-sheep? see-wolves? see-grass? death-penalty
+    ls:let num num
+    ls:let dur dur
+    report ls:report 0 [ run-micro-sims 0 num dur ]
   ] [
     report []
   ]
 end
 
-to init-mind [ vision see-sheep? see-wolves? see-grass? ]
+to init-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
   if empty? ls:models [
     ls:create-models 1 "wsp-cog-model.nlogo"
     ls:assign 0 wolf-actions wolf-actions
     ls:assign 0 sheep-actions sheep-actions
-    ls:assign 0 narrate? false
-    ls:assign 0 scheduling scheduling
-    ls:assign 0 track-ego-on-wu? track-ego-on-wu?
+    ls:assign 0 scheduling "all-at-once"
   ]
-  ls:let dp death-penalty
 
   let visible-patches patches in-radius vision
   ls:let wcs [ rel-cors ] of ifelse-value see-wolves? [ other wolves-on visible-patches ] [ no-turtles ]
@@ -326,6 +241,7 @@ to init-mind [ vision see-sheep? see-wolves? see-grass? ]
   ls:let my-xcor (xcor - pxcor)
   ls:let my-ycor (ycor - pycor)
   ls:let my-heading heading
+  ls:assign 0 death-penalty death-penalty
 
   ls:let sgff sheep-gain-from-food
   ls:let wgff wolf-gain-from-food
@@ -335,7 +251,6 @@ to init-mind [ vision see-sheep? see-wolves? see-grass? ]
   ls:let v vision
 
   ls:ask 0 [
-    set death-penalty dp
     set reward-discount 0.8
     set wolf-coords wcs
     set sheep-coords scs
@@ -435,41 +350,6 @@ to-report fraction-of [ ratio agents ]
   report n-of (ratio * count agents) agents
 end
 
-to record-micro-sims
-  let vision sheep-vision
-  let n sheep-sim-n
-  let l sheep-sim-l
-  let actions sheep-actions
-  let see-sheep? sheep-see-sheep?
-  let see-wolves? sheep-see-wolves?
-  let see-grass? sheep-see-grass?
-  if is-wolf? self [
-    set vision wolf-vision
-    set n wolf-sim-n
-    set l wolf-sim-l
-    set actions wolf-actions
-    set see-sheep? wolves-see-sheep?
-    set see-wolves? wolves-see-wolves?
-    set see-grass? wolves-see-grass?
-  ]
-  ls:let id who
-  ls:let n n
-  ls:let l l
-  init-mind vision see-sheep? see-wolves? see-grass?
-  ls:ask 0 [
-
-    foreach range n [ r ->
-      setup r
-      watch ego
-      export-view (word id "-" r "-0.png")
-      repeat l [
-        go
-        export-view (word id "-" r "-" ticks ".png")
-      ]
-    ]
-  ]
-end
-
 to-report smoothed [ variable c ]
   report smoothed-val variable (runresult variable) 1 c
 end
@@ -535,9 +415,9 @@ HORIZONTAL
 
 SLIDER
 0
-165
+150
 175
-198
+183
 sheep-gain-from-food
 sheep-gain-from-food
 0.0
@@ -565,9 +445,9 @@ HORIZONTAL
 
 SLIDER
 0
-130
+115
 175
-163
+148
 grass-regrowth-time
 grass-regrowth-time
 0
@@ -580,9 +460,9 @@ HORIZONTAL
 
 BUTTON
 0
-95
+80
 69
-128
+113
 setup
 setup
 NIL
@@ -597,9 +477,9 @@ NIL
 
 BUTTON
 70
-95
+80
 145
-128
+113
 go
 go
 T
@@ -656,9 +536,9 @@ count wolves
 
 SLIDER
 0
-340
+325
 175
-373
+358
 sheep-vision
 sheep-vision
 0
@@ -671,9 +551,9 @@ HORIZONTAL
 
 SLIDER
 175
-340
+325
 350
-373
+358
 wolf-vision
 wolf-vision
 0
@@ -728,9 +608,9 @@ table:get smoothed-values \"seff-6\"
 
 SLIDER
 0
-200
+185
 175
-233
+218
 sheep-threshold
 sheep-threshold
 0
@@ -743,9 +623,9 @@ HORIZONTAL
 
 SLIDER
 175
-200
+185
 350
-233
+218
 wolf-threshold
 wolf-threshold
 0
@@ -758,9 +638,9 @@ HORIZONTAL
 
 SLIDER
 0
-410
+360
 175
-443
+393
 sheep-sim-n
 sheep-sim-n
 1
@@ -773,14 +653,14 @@ HORIZONTAL
 
 SLIDER
 0
-445
+395
 175
-478
+428
 sheep-sim-l
 sheep-sim-l
 1
 sheep-vision
-3.0
+1.0
 1
 1
 NIL
@@ -788,9 +668,9 @@ HORIZONTAL
 
 SLIDER
 175
-410
+360
 350
-443
+393
 wolf-sim-n
 wolf-sim-n
 1
@@ -803,35 +683,24 @@ HORIZONTAL
 
 SLIDER
 175
-445
+395
 350
-478
+428
 wolf-sim-l
 wolf-sim-l
 1
 wolf-vision
-3.0
+1.0
 1
 1
 NIL
 HORIZONTAL
 
-INPUTBOX
-175
-480
-350
-540
-death-penalty
--10.0
-1
-0
-Number
-
 SLIDER
 175
-165
+150
 350
-198
+183
 wolf-gain-from-food
 wolf-gain-from-food
 0
@@ -844,9 +713,9 @@ HORIZONTAL
 
 SLIDER
 175
-130
+115
 350
-163
+148
 newborn-energy
 newborn-energy
 0
@@ -885,9 +754,9 @@ table:get smoothed-values \"escape-6\"
 
 SWITCH
 0
-305
+290
 175
-338
+323
 sheep-see-grass?
 sheep-see-grass?
 0
@@ -896,9 +765,9 @@ sheep-see-grass?
 
 SWITCH
 0
-270
+255
 175
-303
+288
 sheep-see-wolves?
 sheep-see-wolves?
 0
@@ -907,9 +776,9 @@ sheep-see-wolves?
 
 SWITCH
 0
-235
+220
 175
-268
+253
 sheep-see-sheep?
 sheep-see-sheep?
 0
@@ -918,9 +787,9 @@ sheep-see-sheep?
 
 SWITCH
 175
-305
+290
 350
-338
+323
 wolves-see-grass?
 wolves-see-grass?
 0
@@ -929,9 +798,9 @@ wolves-see-grass?
 
 SWITCH
 175
-270
+255
 350
-303
+288
 wolves-see-wolves?
 wolves-see-wolves?
 0
@@ -940,9 +809,9 @@ wolves-see-wolves?
 
 SWITCH
 175
-235
+220
 350
-268
+253
 wolves-see-sheep?
 wolves-see-sheep?
 0
@@ -951,14 +820,14 @@ wolves-see-sheep?
 
 SLIDER
 0
-375
+430
 175
-408
-sheep-sim-warmup
-sheep-sim-warmup
+463
+sheep-death-penalty
+sheep-death-penalty
+-50
 0
-sheep-sim-n
-0.0
+-10.0
 1
 1
 NIL
@@ -966,56 +835,18 @@ HORIZONTAL
 
 SLIDER
 175
-375
+430
 350
-408
-wolf-sim-warmup
-wolf-sim-warmup
+463
+wolf-death-penalty
+wolf-death-penalty
+-50
 0
-wolf-sim-n
-0.0
+-10.0
 1
 1
 NIL
 HORIZONTAL
-
-BUTTON
-200
-95
-312
-128
-NIL
-sample-effs
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-CHOOSER
-175
-45
-350
-90
-scheduling
-scheduling
-"sheep-wolves" "wolves-sheep" "all-at-once" "sheep-wolves-smart" "wolves-sheep-smart"
-2
-
-SWITCH
-0
-480
-177
-513
-track-ego-on-wu?
-track-ego-on-wu?
-0
-1
--1000
 
 @#$#@#$#@
 ## WHAT IS IT?
