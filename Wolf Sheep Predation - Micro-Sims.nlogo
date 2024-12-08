@@ -103,13 +103,21 @@ to go
 end
 
 to sheep-choose-action
-  let results simulate sheep-vision sheep-sim-n sheep-sim-l sheep-death-penalty sheep-see-sheep? sheep-see-wolves? sheep-see-grass?
+  let results simulate-sheep
   set chosen-move ifelse-value empty? results [ one-of sheep-actions ] [ pick-best results ]
 end
 
+to-report simulate-sheep
+  report simulate sheep-vision sheep-sim-n sheep-sim-l sheep-death-penalty sheep-see-sheep? sheep-see-wolves? sheep-see-grass?
+end
+
 to wolf-choose-action
-  let results simulate wolf-vision wolf-sim-n wolf-sim-l wolf-death-penalty wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
+  let results simulate-wolf
   set chosen-move ifelse-value empty? results [ one-of wolf-actions ] [ pick-best results ]
+end
+
+to-report simulate-wolf
+  report simulate wolf-vision wolf-sim-n wolf-sim-l wolf-death-penalty wolves-see-sheep? wolves-see-wolves? wolves-see-grass?
 end
 
 to wolves-and-sheep-act
@@ -209,7 +217,7 @@ end
 
 to-report simulate [ vision num dur death-penalty see-sheep? see-wolves? see-grass? ]
   ifelse num > 1 and dur > 0 and (see-sheep? or see-wolves? or see-grass?) [
-    init-mind vision see-sheep? see-wolves? see-grass? death-penalty
+    setup-mind vision see-sheep? see-wolves? see-grass? death-penalty
     ls:let num num
     ls:let dur dur
     report ls:report 0 [ run-micro-sims 0 num dur ]
@@ -218,12 +226,11 @@ to-report simulate [ vision num dur death-penalty see-sheep? see-wolves? see-gra
   ]
 end
 
-to init-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
+to setup-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
   if empty? ls:models [
     ls:create-models 1 "wsp-cog-model.nlogo"
     ls:assign 0 wolf-actions wolf-actions
     ls:assign 0 sheep-actions sheep-actions
-    ls:assign 0 scheduling "all-at-once"
   ]
 
   let visible-patches patches in-radius vision
@@ -241,7 +248,6 @@ to init-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
   ls:let my-xcor (xcor - pxcor)
   ls:let my-ycor (ycor - pycor)
   ls:let my-heading heading
-  ls:assign 0 death-penalty death-penalty
 
   ls:let sgff sheep-gain-from-food
   ls:let wgff wolf-gain-from-food
@@ -249,6 +255,7 @@ to init-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
   ls:let my-breed (word breed)
 
   ls:let v vision
+  ls:let dp death-penalty
 
   ls:ask 0 [
     set reward-discount 0.8
@@ -264,6 +271,7 @@ to init-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
     set sheep-gain-from-food sgff
     set wolf-gain-from-food wgff
     set vision v
+    set death-penalty dp
     set grass-density ifelse-value empty? lgcs [ 0.5 ] [ length lgcs / (length dgcs + length lgcs) ]
   ]
 end
@@ -461,7 +469,7 @@ HORIZONTAL
 BUTTON
 0
 80
-69
+85
 113
 setup
 setup
@@ -476,9 +484,9 @@ NIL
 1
 
 BUTTON
-70
+85
 80
-145
+175
 113
 go
 go
@@ -580,9 +588,9 @@ true
 true
 "" ""
 PENS
-"sheep" 1.0 0 -13345367 true "" "plotxy ticks smoothed-val \"seff\" sheep-efficiency 6 0.1"
-"wolves" 1.0 0 -2674135 true "" "plotxy ticks smoothed-val \"weff\" wolf-efficiency 6 0.1"
-"escape" 1.0 0 -11221820 true "" "plotxy ticks smoothed-val \"escape\" sheep-escape-efficiency 6 0.1"
+"sheep" 1.0 0 -13345367 true "" "plotxy ticks smoothed-val \"seff\" sheep-efficiency 6 0.05"
+"wolves" 1.0 0 -2674135 true "" "plotxy ticks smoothed-val \"weff\" wolf-efficiency 6 0.05"
+"escape" 1.0 0 -11221820 true "" "plotxy ticks smoothed-val \"escape\" sheep-escape-efficiency 6 0.05"
 
 MONITOR
 655
@@ -660,7 +668,7 @@ sheep-sim-l
 sheep-sim-l
 1
 sheep-vision
-1.0
+3.0
 1
 1
 NIL
@@ -690,7 +698,7 @@ wolf-sim-l
 wolf-sim-l
 1
 wolf-vision
-1.0
+3.0
 1
 1
 NIL
@@ -720,7 +728,7 @@ newborn-energy
 newborn-energy
 0
 1
-0.1
+0.2
 0.1
 1
 NIL
@@ -792,7 +800,7 @@ SWITCH
 323
 wolves-see-grass?
 wolves-see-grass?
-0
+1
 1
 -1000
 

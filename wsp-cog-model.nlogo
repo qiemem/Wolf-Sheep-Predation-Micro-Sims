@@ -1,10 +1,10 @@
 __includes [ "actions.nls" ]
 
-extensions [ profiler table ]
+extensions [ table ]
 
 globals [
-  rewards
-  first-moves
+  first-move
+  reward
   ego
 
   wolf-actions
@@ -34,73 +34,23 @@ to-report run-micro-sims [ num-warmup num-sims sim-length ]
     resize-world (- vision * 2) (vision * 2) (- vision * 2) (vision * 2)
   ]
 
-  set first-moves table:make
-  set rewards table:make
-  let results table:from-list [[0 []]]
-
-  repeat num-warmup [
-    setup
-    table:clear rewards
-    ask sheep [
-      table:put rewards who 0
-      table:put first-moves who one-of sheep-actions
-    ]
-    ask wolves [
-      table:put rewards who 0
-      table:put first-moves who one-of wolf-actions
-    ]
-    repeat sim-length [
-      go
-    ]
-    foreach table:to-list rewards [ reward-pair ->
-      let agent first reward-pair
-      let reward last reward-pair
-      let fm table:get first-moves agent
-      let agent-results table:get-or-default results agent []
-      table:put results agent lput (list fm reward) agent-results
-    ]
-  ]
-
-  if num-warmup > 0 [
-    foreach table:to-list results [ agent-result ->
-      let agent first agent-result
-      let result last agent-result
-      let best-action pick-best result
-;      print (word agent ": picked " best-action " from " result)
-      table:put first-moves agent best-action
-    ]
-  ]
-  table:clear rewards
-  if not track-ego-on-wu? [ table:put results 0 [] ]
+  let results []
 
   repeat (num-sims - num-warmup) [
     setup
-    if num-warmup = 0 [
-      ask sheep [
-        table:put first-moves who one-of sheep-actions
-      ]
-      ask wolves [
-        table:put first-moves who one-of wolf-actions
-      ]
-    ]
-    ask ego [
-      table:put first-moves who one-of (ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ])
-      table:put rewards who 0
-    ]
     repeat sim-length [
       go
     ]
-    table:put results 0 lput (list (table:get first-moves 0) (table:get rewards 0)) (table:get results 0)
+    set results lput (list first-move reward) results
   ]
-  report table:get results 0
+  report results
 end
 
 to setup
   ct
-;  cp
-  ask patches [ set pcolor black ]
+  ask patches [ set pcolor black ] ; this is faster than clear-patches
 
-  set cur-discount reward-discount
+  set cur-discount 1
 
   setup-grass
 
@@ -108,15 +58,14 @@ to setup
     create-sheep 1 [
       set color white
     ]
-;    set first-move item (run-num mod length sheep-actions) sheep-actions
-;    table:put first-moves 0 one-of sheep-actions
+    set first-move one-of sheep-actions
   ] [
     create-wolves 1 [
       set color black
     ]
-;    set first-move item (run-num mod length sheep-actions) wolf-actions
-;    table:put first-moves 0 one-of wolf-actions
+    set first-move one-of wolf-actions
   ]
+  set reward 0
 
   ask turtle 0 [
     set xcor init-xcor
@@ -124,22 +73,12 @@ to setup
     set heading init-heading
     set ego self
     set energy init-energy
-    ;watch-me
   ]
 
   setup-wolves
   setup-sheep
 
-;  ask turtles [
-;    table:put rewards who 0
-;  ]
-  ask ego [
-    table:put rewards who 0
-;    table:put first-moves who one-of (ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ])
-  ]
-
   ask turtles [ set acted? false ]
-  if narrate? [ print "setup" ]
   reset-ticks
 end
 
@@ -160,7 +99,6 @@ to setup-wolves
       set xcor item 0 c
       set ycor item 1 c
       set heading item 2 c
-;      table:put first-moves who one-of wolf-actions
     ]
   ]
 end
@@ -173,33 +111,13 @@ to setup-sheep
       set xcor item 0 c
       set ycor item 1 c
       set heading item 2 c
-;      table:put first-moves who one-of sheep-actions
     ]
   ]
 end
 
 to go
-  (ifelse
-    scheduling = "sheep-wolves" [
-      ask sheep [ act sheep-actions ]
-      ask wolves [ act wolf-actions ]
-    ]
-    scheduling = "wolves-sheep" [
-      ask wolves [ act wolf-actions ]
-      ask sheep [ act sheep-actions ]
-    ]
-    scheduling = "all-at-once" [
-      ask turtles [ act ifelse-value breed = sheep [ sheep-actions ] [ wolf-actions ] ]
-    ] [
-      ifelse ego-breed = "sheep" [
-        ask sheep [ act sheep-actions ]
-        ask wolves [ act wolf-actions ]
-      ] [
-        ask wolves [ act wolf-actions ]
-        ask sheep [ act sheep-actions ]
-      ]
-    ]
-  )
+  ask turtles [ act ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ] ]
+
   if ego != nobody [
     ask ego [
       death
@@ -212,21 +130,10 @@ to go
     pycor = max-pycor
   ] [ die ] ; leaving the world; forget about them
 
-  foreach table:to-list rewards [ pair ->
-    let r 0
-    let t turtle first pair
-    ifelse t = nobody [
-      set r death-penalty
-    ] [
-      set r [ delta-energy ] of t
-    ]
-    table:put rewards (first pair) (last pair) + r * cur-discount
-  ]
+  let r ifelse-value ego = nobody [ death-penalty ] [ [ delta-energy ] of ego ]
+  set reward reward + r * cur-discount
   set cur-discount cur-discount * reward-discount
 
-  if ego = nobody and narrate? [ ; ego is dead
-    print "died"
-  ]
   tick
 end
 
@@ -238,28 +145,9 @@ to-report is-grass?
 end
 
 to act [ actions ]
-  let m 0
-  ifelse not acted? [
-    set m table:get first-moves who
-;    show m
-  ] [
-    set m one-of actions
-  ]
-  set acted? true
+  let m ifelse-value ticks = 0 and ego = self [ first-move ] [ one-of actions ]
   set delta-energy runresult m
-  if narrate? and self = ego [ print (word m ": " delta-energy) ]
   set energy energy + delta-energy
-end
-
-to-report pick-best [ results ]
-  let moves remove-duplicates map first results
-  let scores map [ m -> mean map last filter [ p -> first p = m ] results ] moves
-  let best max scores
-  (foreach moves scores [ [ m s ] ->
-    if s = best [
-      report m
-    ]
-  ])
 end
 
 to death
@@ -304,9 +192,9 @@ ticks
 30.0
 
 SLIDER
-9
+0
 10
-194
+195
 43
 sheep-gain-from-food
 sheep-gain-from-food
@@ -319,10 +207,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-5
-100
+2
+80
 92
-133
+113
 NIL
 setup
 NIL
@@ -337,9 +225,9 @@ NIL
 
 BUTTON
 95
-100
-160
-133
+80
+195
+113
 NIL
 go
 T
@@ -353,10 +241,10 @@ NIL
 1
 
 MONITOR
-85
-170
-142
-215
+90
+185
+165
+230
 energy
 [ energy ] of turtle 0
 17
@@ -365,57 +253,35 @@ energy
 
 MONITOR
 5
-170
-82
-215
+185
+85
+230
 first-move
-table:get first-moves 0
+first-move
 17
 1
 11
 
 SLIDER
-5
-135
-177
-168
+2
+115
+197
+148
 reward-discount
 reward-discount
 0
 1
-0.9
+0.8
 0.1
 1
 NIL
 HORIZONTAL
 
-SWITCH
-5
-225
-110
-258
-narrate?
-narrate?
-1
-1
--1000
-
-INPUTBOX
-121
-220
-278
-280
-death-penalty
--10.0
-1
-0
-Number
-
 SLIDER
-10
-50
-202
-83
+1
+45
+196
+78
 wolf-gain-from-food
 wolf-gain-from-food
 0
@@ -426,26 +292,20 @@ wolf-gain-from-food
 NIL
 HORIZONTAL
 
-CHOOSER
-20
-290
-212
-335
-scheduling
-scheduling
-"sheep-wolves" "wolves-sheep" "all-at-once" "sheep-wolves-smart" "wolves-sheep-smart"
+SLIDER
+2
+150
+197
+183
+death-penalty
+death-penalty
+-50
 0
-
-SWITCH
-10
-340
-187
-373
-track-ego-on-wu?
-track-ego-on-wu?
+-10.0
 1
 1
--1000
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
