@@ -116,6 +116,7 @@ to setup-sheep
 end
 
 to go
+  if ego = nobody [ stop ]
   ask turtles [ act ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ] ]
 
   if ego != nobody [
