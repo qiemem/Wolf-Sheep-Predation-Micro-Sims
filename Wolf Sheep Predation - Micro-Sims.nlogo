@@ -122,6 +122,8 @@ to setup
     [-> wolf-death-penalty ]
   )
 
+  set last-param-values map runresult param-reporters
+
   reset-ticks
 end
 
@@ -428,53 +430,73 @@ to-report safe-div [ num den ] ; report 0 on instead of divide by zero
   report num / den
 end
 
-; Applies multiple passes of exponential smoothing to isolate long term trends. This works by applying a simple
-; first order low pass filter multiple times. A single pass is a standard exponential moving average. The coefficient, C,
-; defines a cutoff frequency; patterns that happen more quickly
-; Each subsequent
-; pole
-; NAME is a string to
-to-report smoothed-val [ name cur-value order c ]
-  foreach range order [ i ->
-    let var (word name "-" (1 + i))
-    let last-value table:get-or-default smoothed-values var cur-value
-    set cur-value last-value + c * (cur-value - last-value)
-    table:put smoothed-values var cur-value
-  ]
-  report cur-value
-end
-
-to-report weighted-moving-average [ name value weight window ]
+;
+to update-weighted-moving-averages [ name value weight windows ]
   let weighted-values-key (word name "-weighted-values")
   let weights-key (word name "-weights")
-  let weighted-total-key (word name "-weighted-total")
-  let total-weight-key (word name "-total-weight")
 
   let weighted-value value * weight
-  let weighted-values lput weighted-value table:get-or-default weighted-moving-averages weighted-values-key []
-  let weights lput weight table:get-or-default weighted-moving-averages weights-key []
-  let weighted-total weighted-value + table:get-or-default weighted-moving-averages weighted-total-key 0
-  let total-weight  weight + table:get-or-default weighted-moving-averages total-weight-key 0
+  let weighted-values fput weighted-value table:get-or-default weighted-moving-averages weighted-values-key []
+  let weights fput weight table:get-or-default weighted-moving-averages weights-key []
 
-  while [ length weighted-values > window ] [
-    set weighted-total weighted-total - first weighted-values
-    set total-weight total-weight - first weights
-    set weighted-values but-first weighted-values
-    set weights but-first weights
+  foreach windows [ window ->
+    let weighted-total-key (word name "-weighted-total-" window)
+    let total-weight-key (word name "-total-weight-" window)
+
+    let weighted-total weighted-value + table:get-or-default weighted-moving-averages weighted-total-key 0
+    let total-weight  weight + table:get-or-default weighted-moving-averages total-weight-key 0
+
+    if window > 0 and length weighted-values > window [
+      set weighted-total weighted-total - item window weighted-values
+      set total-weight total-weight - item window weights
+    ]
+
+    table:put weighted-moving-averages weighted-total-key weighted-total
+    table:put weighted-moving-averages total-weight-key total-weight
+  ]
+
+  let max-window max windows
+
+  if length weighted-values > max-window [
+    set weighted-values but-last weighted-values
+    set weights but-last weights
   ]
 
   table:put weighted-moving-averages weighted-values-key weighted-values
   table:put weighted-moving-averages weights-key weights
-  table:put weighted-moving-averages weighted-total-key weighted-total
-  table:put weighted-moving-averages total-weight-key total-weight
+end
 
+to update-all-moving-averages [ name value weight ]
+  let new-param-values map runresult param-reporters
+  if new-param-values != last-param-values [
+;    let weighted-total-50 table:get-or-default weighted-moving-averages (word name "-weighted-total-" 50) 0
+    let total-weight-50 table:get-or-default weighted-moving-averages (word name "-total-weight-" 50) 0
+    let weighted-total weighted-moving-average name 0
+;    table:put weighted-moving-averages (word name "-weighted-total-" 0) weighted-total * total-weight-50
+;    table:put weighted-moving-averages (word name "-total-weight-" 0) total-weight-50
+    table:put weighted-moving-averages (word name "-weighted-total-" 0) weighted-total * weight
+    table:put weighted-moving-averages (word name "-total-weight-" 0) weight
+    set last-param-values new-param-values
+  ]
+  update-weighted-moving-averages name value weight [ 0 1 50 100 200]
+end
+
+to-report weighted-moving-average [ name window ]
+  let weighted-total table:get weighted-moving-averages (word name "-weighted-total-" window)
+  let total-weight table:get weighted-moving-averages (word name "-total-weight-" window)
   report safe-div weighted-total total-weight
 end
 
-to-report smoothed [ variable c ]
-  report smoothed-val variable (runresult variable) 1 c
+to-report selected-moving-average [ name ]
+  let window (ifelse-value
+    smooth-since = "last parameter change" [ 0 ]
+    smooth-since = "last 200 ticks" [ 200 ]
+    smooth-since = "last 100 ticks" [ 100 ]
+    smooth-since = "last 50 ticks" [ 50 ]
+    [ 1 ]
+  )
+  report weighted-moving-average name window
 end
-
 
 to-report is-grass?
   report pcolor = green
@@ -484,9 +506,9 @@ end
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-720
+705
 10
-1238
+1223
 529
 -1
 -1
@@ -605,9 +627,9 @@ NIL
 0
 
 PLOT
-370
+355
 10
-720
+705
 190
 populations
 time
@@ -625,9 +647,9 @@ PENS
 "grass / 4" 1.0 0 -10899396 true "" "plot grass / 4"
 
 MONITOR
-645
+630
 80
-715
+700
 125
 sheep
 count sheep
@@ -636,9 +658,9 @@ count sheep
 11
 
 MONITOR
-645
+630
 125
-715
+700
 170
 wolves
 count wolves
@@ -730,7 +752,7 @@ sheep-sim-l
 sheep-sim-l
 1
 sheep-vision
-3.0
+1.0
 1
 1
 NIL
@@ -745,7 +767,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-12.0
+30.0
 1
 1
 NIL
@@ -908,20 +930,20 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-370
-410
-700
-436
+355
+455
+685
+481
 Efficiencies for entire run:
 12
 0.0
 1
 
 MONITOR
-370
-425
-455
+355
 470
+440
+515
 sheep
 sheep-efficiency-weighted-sum / total-sheep-actions
 3
@@ -929,10 +951,10 @@ sheep-efficiency-weighted-sum / total-sheep-actions
 11
 
 MONITOR
-540
-425
-625
+525
 470
+610
+515
 wolves
 wolf-efficiency-weighted-sum / total-wolf-actions
 3
@@ -940,10 +962,10 @@ wolf-efficiency-weighted-sum / total-wolf-actions
 11
 
 MONITOR
-455
-425
-540
+440
 470
+525
+515
 escape
 sheep-escape-efficiency-weighted-sum / total-wolf-actions
 4
@@ -951,9 +973,9 @@ sheep-escape-efficiency-weighted-sum / total-wolf-actions
 11
 
 PLOT
-370
+355
 190
-720
+705
 405
 smoothed efficiency
 NIL
@@ -966,42 +988,52 @@ true
 true
 "" ""
 PENS
-"sheep" 1.0 0 -13345367 true "" "plotxy ticks smoothed-val \"seff\" sheep-efficiency 6 0.03"
-"wolves" 1.0 0 -2674135 true "" "plotxy ticks smoothed-val \"weff\" wolf-efficiency 6 0.03"
-"escape" 1.0 0 -11221820 true "" "plotxy ticks smoothed-val \"escape\" sheep-escape-efficiency 6 0.03"
+"sheep" 1.0 0 -13345367 true "" "update-all-moving-averages \"seff\" sheep-efficiency num-sheep-actions\nplotxy ticks selected-moving-average \"seff\""
+"wolves" 1.0 0 -2674135 true "" "update-all-moving-averages \"weff\" wolf-efficiency num-wolf-actions\nplotxy ticks selected-moving-average \"weff\""
+"escape" 1.0 0 -11221820 true "" "update-all-moving-averages \"escape\" sheep-escape-efficiency num-wolf-actions\nplotxy ticks selected-moving-average \"escape\""
 
 MONITOR
-660
+645
 260
-717
+702
 305
 sheep
-table:get smoothed-values \"seff-6\"
+selected-moving-average \"seff\"
 3
 1
 11
 
 MONITOR
-660
+645
 305
-717
+702
 350
 escape
-table:get smoothed-values \"escape-6\"
+selected-moving-average \"escape\"
 3
 1
 11
 
 MONITOR
-660
+645
 350
-717
+702
 395
 wolves
-table:get smoothed-values \"weff-6\"
+selected-moving-average \"weff\"
 3
 1
 11
+
+CHOOSER
+355
+405
+705
+450
+smooth-since
+smooth-since
+"last parameter change" "last 200 ticks" "last 100 ticks" "last 50 ticks" "disable smoothing"
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
