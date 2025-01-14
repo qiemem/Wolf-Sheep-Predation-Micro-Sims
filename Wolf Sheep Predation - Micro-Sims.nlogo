@@ -275,7 +275,7 @@ to-report simulate [ vision num dur death-penalty see-sheep? see-wolves? see-gra
 end
 
 ; Turtle initiliazes the cognitive model based on their surroundings
-; All turtles use the same model for their cognitive model as it is completely re-initialized for each batch of simulations and thus does not need to track any state
+; All turtles use the same model for their cognitive model as it is completely re-initialized for each batch of simulations and thus does not need to track any state.
 to setup-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
   if empty? ls:models [ ; Create the cognitive model if we haven't yet
     ls:create-models 1 "wsp-cog-model.nlogo"
@@ -431,7 +431,7 @@ to-report safe-div [ num den ] ; report 0 on instead of divide by zero
   report num / den
 end
 
-;
+; Update the moving averages of a given metric with a new value. A window of 0 corresponds to average over the entire timeframe.
 to update-weighted-moving-averages [ name value weight windows ]
   let weighted-values-key (word name "-weighted-values")
   let weights-key (word name "-weights")
@@ -467,15 +467,17 @@ to update-weighted-moving-averages [ name value weight windows ]
   table:put weighted-moving-averages weights-key weights
 end
 
+; Check for a change in parameter values. Should be called at most once per tick.
 to detect-param-values-changed
   let new-param-values map runresult param-reporters
   set param-values-changed new-param-values != last-param-values
   set last-param-values new-param-values
 end
 
+; Updates the moving averages for the values accessible by the UI. Also, resets the total running average when paramaters change.
 to update-all-moving-averages [ name value weight ]
   if param-values-changed [
-    let old-weight weight * 10
+    let old-weight weight * 50 ; Weight the old average in the new calculation to allow for a smoother transition.
     let wma weighted-moving-average name 0
     table:put weighted-moving-averages (word name "-weighted-total-" 0) wma * old-weight
     table:put weighted-moving-averages (word name "-total-weight-" 0) old-weight
@@ -740,7 +742,7 @@ sheep-sim-n
 sheep-sim-n
 1
 50
-12.0
+6.0
 1
 1
 NIL
@@ -770,7 +772,7 @@ wolf-sim-n
 wolf-sim-n
 1
 50
-12.0
+6.0
 1
 1
 NIL
@@ -854,7 +856,7 @@ SWITCH
 288
 sheep-see-wolves?
 sheep-see-wolves?
-0
+1
 1
 -1000
 
@@ -985,8 +987,8 @@ NIL
 NIL
 0.0
 1.0
-0.5
-1.0
+0.9
+1.1
 true
 true
 "" "detect-param-values-changed"
@@ -994,7 +996,7 @@ PENS
 "changed" 1.0 1 -3026479 false "" "if param-values-changed [ plotxy ticks plot-y-max ]"
 "sheep" 1.0 0 -13345367 true "" "update-all-moving-averages \"seff\" sheep-efficiency num-sheep-actions\nplotxy ticks selected-moving-average \"seff\""
 "wolves" 1.0 0 -2674135 true "" "update-all-moving-averages \"weff\" wolf-efficiency num-wolf-actions\nplotxy ticks selected-moving-average \"weff\""
-"escape" 1.0 0 -11221820 true "" "update-all-moving-averages \"escape\" sheep-escape-efficiency num-wolf-actions\nlet escape 1 + 10 * (selected-moving-average \"escape\" - 1)\nplotxy ticks escape"
+"escape" 1.0 0 -11221820 true "" "update-all-moving-averages \"escape\" sheep-escape-efficiency num-wolf-actions\nplotxy ticks selected-moving-average \"escape\""
 
 MONITOR
 640
@@ -1084,16 +1086,19 @@ Cognitive parameters: These parameters control the behavior of the cognitive mod
 
 As in the original Wolf Sheep Predation, the POPULATION graph and associated monitors show the population dynamics of the model.
 
-The SMOOTHED EFFICIENCY graph and associated monitors show efficiency values to measure how well wolves find sheep, how well sheep find grass, and how well sheep escape wolves. Raw efficiency values vary greatly from tick to tick. For example, it is not uncommon for the wolves to not eat any sheep on a particular tick. Hence, the graph highlights trends in data that take place over around 100 ticks or more.
+The SMOOTHED EFFICIENCY graph and associated monitors show efficiency values to measure how well wolves find sheep, how well sheep find grass, and how well sheep escape wolves. Raw efficiency values vary greatly from tick to tick. For example, it is not uncommon for the wolves to not eat any sheep on a particular tick. This graph plots the moving average of these efficiencies to smooth out this variation. The SMOOTH-SINCE dropdown determines how this smoothing is done:
+
+- LAST PARAMETER CHANGE: Displays the average efficiency since the last time parameters were changed. When parameters are changed, the moving average is reset to allow the average efficiencies for the new parameters to become evident, but also can cause a momentary jump in the graph. This setting is helpful for identifying the overall efficiency values for a certain configuration of parameters.
+- LAST 400/200/100/50 TICKS: Displays the average efficieny over the specified number of ticks. These can be helpful for examining how efficiency responds to different temporal patterns, such as population changes or spatial distribution of agents.
+- DISABLE SMOOTHING: Completely turns off smoothing.
+
+To facilitate the investigation of the impact of the parameters on the efficiencies, the graph will draw a light gray line on any tick in which parameters were changed.
 
 The EFFICIENCIES FOR ENTIRE RUN monitors show the overall efficiency values for all ticks since SETUP was last pressed.
 
 ## THINGS TO NOTICE
 
-Try running the model with species only using a single simulation of a single tick. This means the agents are picking random actions since they have nothing to compare that single simulation with. Try slowly increasing the number of simulations a species uses. Notice how efficiency dramatically increases at first and then begins to taper off. How does the number of ticks a species uses affect this?
-
-As sheep efficiency increases, notice that that sheep population decreases. Why would an increased ability to get food cause the population to lower? What happens to the wolf population?
-
+Try running the model with species only using a single simulation of a single tick. This means the agents are picking random actions since they have nothing to compare that single simulation with. Try slowly increasing the number of simulations a species uses. Notice how efficiency dramatically increases at first and then begins to taper off. How does the number of ticks a species uses affect this? How about vision?
 
 ## THINGS TO TRY
 
