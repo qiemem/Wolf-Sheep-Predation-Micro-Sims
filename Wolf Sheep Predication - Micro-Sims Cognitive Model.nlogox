@@ -8,18 +8,18 @@ globals [
   first-move
   reward
   ego
-
+  
   wolf-actions
   sheep-actions
   wolf-coords
   sheep-coords
   live-grass-coords
   dead-grass-coords
-  init-energy
+  
   init-xcor
   init-ycor
   init-heading
-
+  
   cur-discount
   
   samples
@@ -38,20 +38,16 @@ to-report run-micro-sims [ num-sims sim-length-1 ]
   if max-pxcor != vision * 2 [
     resize-world (- vision * 2) (vision * 2) (- vision * 2) (vision * 2)
   ]
-
+  
   let results []
-
+  
   repeat (num-sims) [
-    setup
-    repeat sim-length [
-      go
-    ]
-    set results lput (list first-move reward) results
+    run-micro-sim
   ]
   report results
 end
 
-to reset-random
+to setup-random
   ca
   set action-labels [
     "↖️"
@@ -85,8 +81,8 @@ to reset-random
   set init-heading random 360
   resize-world (- vision * 2) (vision * 2) (- vision * 2) (vision * 2)
   setup-reward-tracking
-  reset-ticks
   setup
+  reset-ticks
 end
 
 to setup-reward-tracking
@@ -103,29 +99,26 @@ to run-micro-sim
   ]
   if markings = "mark events and trace ego path" [ ask ego [ pd ] ]
   if markings = "mark events and trace all paths" [ ask turtles [ pd ] ]
-  repeat sim-length [
-    go
+  
+  go first-move
+  repeat sim-length - 1 [
+    go one-of ego-actions
   ]
   let i position first-move ego-actions
   set rewards replace-item i rewards (reward + item i rewards)
   set samples replace-item i samples (1 + item i samples)
+  tick
 end
-
-to-report ego-actions
-  report ifelse-value ego-breed = "sheep" [ sheep-actions ] [ wolf-actions ]
-end
-
-
 
 to setup
-  if not is-list? live-grass-coords [ reset-random ]
+  if not is-list? live-grass-coords [ setup-random ]
   ct
   ask patches [ set pcolor black ] ; this is faster than clear-patches
-
+  
   set cur-discount 1
-
+  
   setup-grass
-
+  
   ifelse ego-breed = "sheep" [
     create-sheep 1
     set first-move one-of sheep-actions
@@ -134,7 +127,7 @@ to setup
     set first-move one-of wolf-actions
   ]
   set reward 0
-
+  
   ask turtle 0 [
     set xcor init-xcor
     set ycor init-ycor
@@ -143,12 +136,11 @@ to setup
     set energy init-energy
     watch-me
   ]
-
+  
   setup-wolves
   setup-sheep
-
+  
   ask turtles [ set acted? false ]
-  reset-ticks
 end
 
 to setup-grass
@@ -184,27 +176,34 @@ to setup-sheep
   ask sheep [ set color white ]
 end
 
-to go
+to go [ ego-action ]
   if ego = nobody [ stop ]
-  ask turtles [ act ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ] ]
-
+  ask turtles [
+    ifelse self = ego [
+      act ego-action
+    ] [
+      act one-of available-actions
+    ]
+  ]
+  
   if ego != nobody [
     ask ego [
       death
     ]
   ]
+  
   ask turtles with [
     pxcor = min-pxcor or
     pxcor = max-pxcor or
     pycor = min-pycor or
     pycor = max-pycor
   ] [ die ] ; leaving the world; forget about them
-
+  
   let r ifelse-value ego = nobody [ death-penalty ] [ [ delta-energy ] of ego ]
   set reward reward + r * cur-discount
   set cur-discount cur-discount * reward-discount
-
-  tick
+  
+  display
 end
 
 to-report is-grass?
@@ -214,9 +213,17 @@ to-report is-grass?
   report pcolor = green
 end
 
-to act [ actions ]
-  let m ifelse-value ticks = 0 and ego = self [ first-move ] [ one-of actions ]
-  set delta-energy runresult m
+to-report available-actions
+  report ifelse-value is-a-sheep? self [ sheep-actions ] [ wolf-actions ]
+end
+
+; can be used even if ego is dead
+to-report ego-actions
+  report ifelse-value ego-breed = "sheep" [ sheep-actions ] [ wolf-actions ]
+end
+
+to act [ action ]
+  set delta-energy runresult action
   if delta-energy > 0 [ stamp-ego "face happy" [ 0 0 255 32 ] ]
   set energy energy + delta-energy
 end
@@ -267,10 +274,6 @@ end]]></code>
     <slider x="0" step="1" y="60" max="10" width="180" display="num-other-sheep" height="50" min="0" direction="Horizontal" default="5.0" variable="num-other-sheep"></slider>
     <slider x="185" step="1" y="60" max="10" width="180" display="num-other-wolves" height="50" min="0" direction="Horizontal" default="5.0" variable="num-other-wolves"></slider>
     <slider x="185" step="1" y="115" max="vision" width="180" display="sim-length" height="50" min="1" direction="Horizontal" default="3.0" variable="sim-length"></slider>
-    <chooser x="0" y="115" height="60" variable="ego-breed" current="1" width="180" display="ego-breed">
-      <choice type="string" value="wolves"></choice>
-      <choice type="string" value="sheep"></choice>
-    </chooser>
     <plot x="370" autoPlotX="true" yMax="1.0" autoPlotY="true" y="7" xMin="0.0" height="265" legend="true" xMax="10.0" yMin="0.0" width="395" display="Expected rewards">
       <setup><![CDATA[let c 0
 foreach action-labels [ a ->
@@ -283,20 +286,25 @@ foreach action-labels [ a ->
   if s > 0 [ plotxy (sum samples) r / s ]
 ])]]></update>
     </plot>
-    <button x="0" y="180" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="90">reset-random</button>
-    <button x="95" y="180" height="35" disableUntilTicks="false" forever="true" kind="Observer" width="110">run-micro-sim</button>
-    <button x="210" y="180" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="75" display="run-once">run-micro-sim</button>
-    <button x="290" y="180" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="75">setup</button>
-    <slider x="0" step="1" y="220" max="50" width="180" display="sheep-gain-from-food" height="50" min="0" direction="Horizontal" default="5.0" variable="sheep-gain-from-food"></slider>
-    <slider x="-1" step="0.1" y="275" max="1" width="180" display="reward-discount" height="50" min="0" direction="Horizontal" default="0.8" variable="reward-discount"></slider>
-    <slider x="184" step="0.1" y="220" max="1" width="180" display="wolf-gain-from-food" height="50" min="0" direction="Horizontal" default="0.7" variable="wolf-gain-from-food"></slider>
-    <slider x="184" step="1" y="275" max="0" width="180" display="death-penalty" height="50" min="-50" direction="Horizontal" default="-10.0" variable="death-penalty"></slider>
-    <chooser x="0" y="330" height="60" variable="markings" current="1" width="365" display="markings">
+    <slider x="0" step="1" y="115" max="100" width="180" display="init-energy" height="50" min="0" direction="Horizontal" default="100.0" variable="init-energy"></slider>
+    <chooser x="0" y="170" height="60" variable="ego-breed" current="1" width="180" display="ego-breed">
+      <choice type="string" value="wolves"></choice>
+      <choice type="string" value="sheep"></choice>
+    </chooser>
+    <chooser x="185" y="170" height="60" variable="markings" current="1" width="180" display="markings">
       <choice type="string" value="none"></choice>
       <choice type="string" value="mark events"></choice>
       <choice type="string" value="mark events and trace ego path"></choice>
       <choice type="string" value="mark events and trace all paths"></choice>
     </chooser>
+    <button x="185" y="275" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="180" display="run-once">run-micro-sim</button>
+    <button x="185" y="235" height="35" disableUntilTicks="false" forever="true" kind="Observer" width="180">run-micro-sim</button>
+    <button x="0" y="235" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="180">setup-random</button>
+    <slider x="184" step="1" y="370" max="0" width="180" display="death-penalty" height="50" min="-50" direction="Horizontal" default="-10.0" variable="death-penalty"></slider>
+    <slider x="-1" step="0.1" y="370" max="1" width="180" display="reward-discount" height="50" min="0" direction="Horizontal" default="0.8" variable="reward-discount"></slider>
+    <slider x="184" step="0.1" y="315" max="1" width="180" display="wolf-gain-from-food" height="50" min="0" direction="Horizontal" default="0.7" variable="wolf-gain-from-food"></slider>
+    <slider x="0" step="1" y="315" max="50" width="180" display="sheep-gain-from-food" height="50" min="0" direction="Horizontal" default="5.0" variable="sheep-gain-from-food"></slider>
+    <button x="0" y="275" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="180">setup</button>
   </widgets>
   <info>## WHAT IS IT?
 
