@@ -1,0 +1,7 @@
+data
+*.csv
+*.py
+*.ipynb
+images
+__pycache__
+*.tmp.nlogox
