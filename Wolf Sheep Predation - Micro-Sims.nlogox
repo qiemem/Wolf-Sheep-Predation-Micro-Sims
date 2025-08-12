@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<model version="NetLogo 7.0.0-beta1" snapToGrid="true">
+<model version="NetLogo 7.0.0-beta2" snapToGrid="true">
   <code><![CDATA[extensions [ ls table ]
 
 ; The available basic behaviors of wolves and sheep are put in a separate nls file so that the primary and cognitive model use the same behaviors.
@@ -267,10 +267,9 @@ end
 ; Turtle simulates possible different scenerios with different actions and report resulting rewards
 to-report simulate [ vision num dur death-penalty see-sheep? see-wolves? see-grass? ]
   ifelse num > 1 and dur > 0 and (see-sheep? or see-wolves? or see-grass?) [
-    setup-mind vision see-sheep? see-wolves? see-grass? death-penalty
+    setup-mind vision see-sheep? see-wolves? see-grass? dur death-penalty
     ls:let num num
-    ls:let dur dur
-    report ls:report 0 [ run-micro-sims num dur ]
+    report [ run-micro-sims num ] ls:of 0
   ] [
     report []
   ]
@@ -278,9 +277,9 @@ end
 
 ; Turtle initiliazes the cognitive model based on their surroundings
 ; All turtles use the same model for their cognitive model as it is completely re-initialized for each batch of simulations and thus does not need to track any state.
-to setup-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
+to setup-mind [ vision see-sheep? see-wolves? see-grass? sim-length death-penalty ]
   if empty? ls:models [ ; Create the cognitive model if we haven't yet
-    ls:create-models 1 "wsp-cog-model.nlogo"
+    ls:create-models 1 "Wolf Sheep Predication - Micro-Sims Cognitive Model.nlogox"
     ls:assign 0 wolf-actions wolf-actions
     ls:assign 0 sheep-actions sheep-actions
   ]
@@ -315,6 +314,8 @@ to setup-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
 
   ls:let new-vision vision
   ls:let new-death-penalty death-penalty
+  
+  ls:let new-sim-length sim-length
 
   ls:ask 0 [
     ; Set cognitive model parameters based on observed local state
@@ -337,6 +338,8 @@ to setup-mind [ vision see-sheep? see-wolves? see-grass? death-penalty ]
     ] [
       length live-grass-coords / (length live-grass-coords + length dead-grass-coords)
     ]
+    set sim-length new-sim-length
+    set markings "none"
   ]
 end
 
@@ -512,7 +515,7 @@ end
 ; Copyright 2024 Bryan Head.
 ; See Info tab for full copyright and license.]]></code>
   <widgets>
-    <view x="830" wrappingAllowedX="true" y="5" frameRate="30.0" minPycor="-25" height="514" showTickCounter="true" patchSize="10.0" fontSize="14" wrappingAllowedY="true" width="514" tickCounterLabel="ticks" maxPycor="25" updateMode="1" maxPxcor="25" minPxcor="-25"></view>
+    <view x="830" wrappingAllowedX="true" y="5" frameRate="30.0" minPycor="-25" height="510" showTickCounter="true" patchSize="10.0" fontSize="14" wrappingAllowedY="true" width="510" tickCounterLabel="ticks" maxPycor="25" updateMode="1" maxPxcor="25" minPxcor="-25"></view>
     <button x="90" y="115" height="35" disableUntilTicks="true" forever="true" kind="Observer" width="90" display="go">go</button>
     <button x="0" y="115" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="85" display="setup">setup</button>
     <slider x="0" step="0.05" y="60" max="1" width="180" display="initial-grass-density" height="50" min="0" direction="Horizontal" default="0.35" variable="initial-grass-density"></slider>
