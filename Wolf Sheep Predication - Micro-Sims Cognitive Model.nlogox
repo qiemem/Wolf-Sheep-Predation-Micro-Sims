@@ -35,9 +35,11 @@ breed [ wolves wolf ]
 turtles-own [ energy delta-energy acted? ]
 
 to-report run-micro-sims [ num-sims ]
+  clear-all-plots
+  if markings != "none" [ clear-drawing ]
   setup-reward-tracking
   reset-ticks
-  repeat (num-sims) [
+  repeat num-sims [
     run-micro-sim
   ]
   report (map list ego-actions rewards)
@@ -45,11 +47,6 @@ end
 
 to setup-random
   ca
-  set action-labels [
-    "↖️"
-    "⬆️"
-    "↗️"
-  ]
   set sheep-actions [
     "(turn -30) + (move 1) + (eat-grass)"
     "(move 1) + (eat-grass)"
@@ -81,6 +78,11 @@ to setup-random
 end
 
 to setup-reward-tracking
+  set action-labels [
+    "↖️"
+    "⬆️"
+    "↗️"
+  ]
   set samples map [ _ -> 0 ] ego-actions
   set rewards map [ _ -> 0 ] ego-actions
 end
@@ -116,6 +118,9 @@ to setup
   set cur-discount 1
   
   setup-grass
+  
+  set-default-shape wolves "wolf"
+  set-default-shape sheep "sheep"
   
   ifelse ego-breed = "sheep" [
     create-sheep 1
