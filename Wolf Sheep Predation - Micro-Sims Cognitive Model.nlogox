@@ -5,28 +5,28 @@
 extensions [ table ]
 
 globals [
-  first-move
-  reward
-  ego
+  first-move      ; The predetermined first action for ego agent in simulation
+  reward          ; Cumulative discounted reward for current simulation run
+  ego             ; Reference to the subject agent being modeled (the "self")
   
-  wolf-actions
-  sheep-actions
-  wolf-coords
-  sheep-coords
-  live-grass-coords
-  dead-grass-coords
+  wolf-actions    ; List of action strings available to wolf agents
+  sheep-actions   ; List of action strings available to sheep agents
+  wolf-coords     ; Initial coordinates of other wolves in ego's perception range
+  sheep-coords    ; Initial coordinates of other sheep in ego's perception range
+  live-grass-coords  ; Patches with grass within ego's vision (green)
+  dead-grass-coords   ; Patches without grass within ego's vision (brown)
   
-  init-xcor
-  init-ycor
-  init-heading
+  init-xcor       ; Ego's initial x position within its perceived world
+  init-ycor       ; Ego's initial y position within its perceived world
+  init-heading    ; Ego's initial heading in degrees
   
-  cur-discount
+  cur-discount    ; Current discount factor for reward calculation
   
-  samples
-  rewards
-  action-labels
+  samples         ; Number of trials conducted per action
+  rewards         ; Total rewards accumulated per action
+  action-labels   ; Emoji labels for plotting action outcomes
   
-  last-markings
+  last-markings    ; Previous visualization setting for change detection
 ]
 
 breed [ sheep a-sheep ]
@@ -34,17 +34,25 @@ breed [ wolves wolf ]
 
 turtles-own [ energy delta-energy acted? ]
 
+; Run multiple simulations and aggregate results for action selection analysis
+; Each simulation runs independently with its own world state - one tick per full simulation
 to-report run-micro-sims [ num-sims ]
   clear-all-plots
   if markings != "none" [ clear-drawing ]
   setup-reward-tracking
   reset-ticks
   repeat num-sims [
-    run-micro-sim
+    run-micro-sim  ; Each iteration is a complete simulation run
+    tick           ; Advance main clock for plotting/analysis (not simulation steps)
   ]
   report (map list ego-actions rewards)
 end
 
+; Create randomized starting conditions for micro-simulations
+; Initializes perception-limited view for cognitive modeling:
+; - Random agent positions within vision radius
+; - Grass distribution based on density parameter
+; - World sized to vision constraints
 to setup-random
   ca
   set sheep-actions [
@@ -77,6 +85,7 @@ to setup-random
   reset-ticks
 end
 
+; Initialize reward tracking system for monitoring action outcomes
 to setup-reward-tracking
   set action-labels [
     "↖️"
@@ -87,6 +96,10 @@ to setup-reward-tracking
   set rewards map [ _ -> 0 ] ego-actions
 end
 
+; Execute a single simulation instance with visualization handling
+; Each call represents one complete micro-simulation run where:
+; - 1 tick = entire simulation duration (sim-length steps)
+; - First action is fixed, subsequent actions are random
 to run-micro-sim
   setup
   if markings != last-markings [
@@ -97,16 +110,19 @@ to run-micro-sim
   if markings = "mark events and trace ego path" [ ask ego [ pd ] ]
   if markings = "mark events and trace all paths" [ ask turtles [ pd ] ]
   
-  go first-move
-  repeat sim-length - 1 [
+  ; Run simulation - first action is predetermined, then random actions
+  go first-move       ; Initial intentional action
+  repeat sim-length - 1 [  ; Subsequent actions are random
     go one-of ego-actions
   ]
+  ; Record results for action selection analysis
   let i position first-move ego-actions
   set rewards replace-item i rewards (reward + item i rewards)
   set samples replace-item i samples (1 + item i samples)
-  tick
+  tick  ; Advance model clock (not micro-simulation clock)
 end
 
+; Configure simulation environment and initialize agents
 to setup
   if not is-list? live-grass-coords [ setup-random ]
   if max-pxcor != vision * 2 [
@@ -179,6 +195,11 @@ to setup-sheep
   ask sheep [ set color white ]
 end
 
+; Process agent actions and calculate discounted energy rewards
+; In micro-simulations, this represents one decision step:
+; - Ego uses pre-determined ego-action
+; - Other agents act randomly
+; - Energy rewards are discounted over simulation steps
 to go [ ego-action ]
   if ego = nobody [ stop ]
   ask turtles [
@@ -204,7 +225,7 @@ to go [ ego-action ]
   
   let r ifelse-value ego = nobody [ death-penalty ] [ [ delta-energy ] of ego ]
   set reward reward + r * cur-discount
-  set cur-discount cur-discount * reward-discount
+  set cur-discount cur-discount * reward-discount  ; Apply temporal discounting to future rewards
   
   display
 end
@@ -265,6 +286,11 @@ to stamp-ego [ the-shape the-color ]
 end
 
 to-report random-coords
+  ; Generate random coordinates within perception range
+  ; Convert to polars coords to ensure agents are within the field of vision
+  ; while still distributin uniformly in cartesian coordinates.
+  ; If we simply generated a random distance and angle, the agents would be 
+  ; clustered around the center
   let x random-float (2 * vision) - vision
   let r vision * sin acos (x / vision)
   let y random-float (2 * r) - r
