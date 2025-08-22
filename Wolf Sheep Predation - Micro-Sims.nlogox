@@ -26,17 +26,15 @@ globals [
   total-sheep-actions ; total number of sheep actions for entire run
   total-wolf-actions ; total number of wolf actions for entire
   
-  smoothed-values ; table used for smoothing efficiency statistics for graphing
+  weighted-moving-averages ; table containing lists of previous values and total total values for computing weighted moving averages
   
-  weighted-moving-averages
+  param-reporters ; list of reporters for all parameters to help determine when a parameter change occurs
+  last-param-values ; list of last set of a parameter values as reported by PARAM-REPORTERS
+  param-values-changed ; boolean indicating whether a parameter change has occurred
   
-  param-reporters
-  last-param-values
-  param-values-changed
-  
-  micro-sim-model-name
-  mind
-  visible-mind
+  micro-sim-model-name ; the name of the micro-simulation model; a constant
+  mind ; the model id of the hidden micro-simulation model agents use by default
+  visible-mind ; the model id of the visible micro-simulation model agents use when micro-simulation visualization is enabled.
 ]
 
 ; Sheep and wolves are both breeds of turtle.
@@ -53,10 +51,9 @@ patches-own [
 ]
 
 to setup
-  ls:reset
+  ls:reset ; close the micro-simulation models in case changes have occurred in its code
   clear-all
   
-  set smoothed-values table:make
   set weighted-moving-averages table:make
   
   ; Define the available actions as strings of code so that they can be passed between models
@@ -75,13 +72,15 @@ to setup
   
   set micro-sim-model-name "Wolf Sheep Predication - Micro-Sims Cognitive Model.nlogox"
   
+  ; create hidden micro-simulation model agents will use by default and initialize with agent actions
   (ls:create-models 1 micro-sim-model-name [ id ->
     set mind id
     ls:assign id wolf-actions wolf-actions
     ls:assign id sheep-actions sheep-actions
   ])
-  set visible-mind -1  
-  
+  ; we'll only create the visible model if we need to, so use -1 to indicate no visible model has been created yet
+  set visible-mind -1
+
   ask patches [
     set pcolor brown
     set countdown random grass-regrowth-time
@@ -119,6 +118,7 @@ to setup
   set num-wolf-actions count wolves
   set num-sheep-actions count sheep
   
+  ; this list of reporters makes it easy to check if parameter values have changed
   set param-reporters (list
     [-> grass-regrowth-time ]
     [-> sheep-gain-from-food ]
@@ -292,7 +292,7 @@ to-report pick-best [ results ] ; turtle procedure
   ])
 end
 
-to-report my-mind
+to-report my-mind ; turtle reporter
   report ifelse-value show-micro-sims = "none" or subject != self [ mind ] [ visible-mind ]
 end
 
@@ -520,6 +520,7 @@ to update-all-moving-averages [ name value weight ]
   update-weighted-moving-averages name value weight [ 0 1 50 100 200 400]
 end
 
+; reports the weighted moving average for the given variable and given window
 to-report weighted-moving-average [ name window ]
   let weighted-total table:get weighted-moving-averages (word name "-weighted-total-" window)
   let total-weight table:get weighted-moving-averages (word name "-total-weight-" window)
@@ -665,6 +666,11 @@ SHEEP-GAIN-FROM-FOOD: The amount of energy sheep get for every grass patch eaten
 WOLF-GAIN-FROM-FOOD: The ratio of a sheep's energy the wolf gains when it eats that sheep.
 SHEEP-THRESHOLD: The energy level at which sheep reproduce.
 WOLF-THRESHOLD: The energy level at which the wolves reproduce.
+
+SHOW-MICRO-SIMS: Controls visualization of cognitive model simulations:
+- "none": Hide all micro-simulation visualizations (best performance)
+- "all": Display all agents' micro-simulations - NOTE: This will significantly slow down the simulation
+- "watched": Show only the micro-simulation for the currently watched agent (using Watch tool)
 
 Cognitive parameters: These parameters control the behavior of the cognitive model for the specified species; they behave equivalently for each species so are listed here only once:
 <species>-SEE-SHEEP?: Whether the species will use sheep in its cognitive model.
