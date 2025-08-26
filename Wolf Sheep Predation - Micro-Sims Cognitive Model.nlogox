@@ -335,41 +335,106 @@ foreach action-labels [ a ->
     <slider x="0" step="1" y="315" max="50" width="180" display="sheep-gain-from-food" height="50" min="0" direction="Horizontal" default="5.0" variable="sheep-gain-from-food"></slider>
     <button x="0" y="275" height="35" disableUntilTicks="false" forever="false" kind="Observer" width="180">setup</button>
   </widgets>
-  <info>## WHAT IS IT?
+  <info><![CDATA[## WHAT IS IT?
+This model is the "cognitive" component of the "Wolf Sheep Predation - Micro-Sims" model. It provides a simplified, miniature simulation environment that agents (wolves and sheep) in the main model use to predict the likely outcomes of their actions.
 
-(a general understanding of what the model is trying to show or explain)
+***
 
 ## HOW IT WORKS
+This model uses a simplified version of the Wolf Sheep Predation rules to function as a predictive tool for an agent in the main model (referred to as the "ego"). The simulation is initialized based on the ego's local perception--the other agents and grass it can currently see. The rules are simplified to make simulations fast and represent the agent's limited understanding of the world: agents do not reproduce, and grass does not regrow. Each simulation is a self-contained "what if?" scenario.
 
-(what rules the agents use to create the overall behavior of the model)
+The model uses a **Monte Carlo method** to handle uncertainty. Since the ego doesn't know exactly what other agents will do, it runs many simulations to determine the average, or "expected," outcome for each of its possible actions. Think of it like rolling a die many times to find the odds. Each simulation is one "roll," providing a sample of what could happen. By averaging the results of many samples, the ego gets a reliable estimate of which action is best.
+
+Here is a more detailed breakdown of how a single **micro-simulation** works:
+
+1.  **Initialization**: The simulation world is built based on the ego's perspective. The ego is created with a specific starting energy, position, and heading. Other sheep and wolves are placed according to the coordinates passed in from the main model. The chosen action to be tested in this specific simulation is stored as the FIRST-MOVE.
+
+2.  **The First Step**: The simulation begins. In the very first step, the ego executes its predetermined FIRST-MOVE, while all other agents in the simulation choose a random action. All agents act in a random order.
+
+3.  **Subsequent Steps**: The simulation continues to run for a set duration (SIM-LENGTH ticks). In all steps after the first, **all agents**, including the ego, act randomly. This simulates the unpredictable nature of the world beyond the ego's immediate control. Agents that move beyond the boundary of the ego's perception are removed from the simulation.
+
+4.  **Reward Calculation**: As the simulation runs, a REWARD score is calculated. At each step, any energy the ego gains or loses is multiplied by a discount factor (CUR-DISCOUNT). This factor starts at 1 and decreases with each step, meaning immediate gains or losses are weighted more heavily than later ones. If the ego dies (either from running out of energy or being eaten), it receives a large negative DEATH-PENALTY reward. The final REWARD is the sum of all these discounted energy changes.
+
+5.  **Aggregating Results**: Once the simulation is complete, its final REWARD is added to a running total for the FIRST-MOVE that was tested. The model also tracks how many times each action has been tested (SAMPLES) so that the average reward for each first move can be computed.
+
+When running as a cognitive model for the main model, after running the desired number of simulations, the total reward for each action is divided by the number of times it was sampled to find the average expected reward. This final, averaged result is what is reported back to the ego in the main model to inform its decision.
+
+***
 
 ## HOW TO USE IT
+This model is designed to be run by the "Wolf Sheep Predation - Micro-Sims" model, but it can also be run in a standalone mode to understand how the cognitive process works.
 
-(how to use the model, including a description of each of the items in the Interface tab)
+**Buttons**
+
+* SETUP-RANDOM: Sets up the simulation with a random configuration of wolves, sheep, and grass based on the sliders.
+* SETUP: Resets the simulation to its initial conditions, either as determined by the parent model, SETUP-RANDOM, or manually set through global variables. If no initial conditions exist yet, calls SETUP-RANDOM
+* RUN-MICRO-SIMS (similar to the GO button in other NetLogo models): Runs micro-simulations continuously.
+* RUN-ONCE: Runs a single micro-simulation.
+
+**Sliders and Choosers**
+
+* VISION: Determines the radius of the simulated world.
+* GRASS-DENSITY: The percentage of patches that will have grass when using SETUP-RANDOM.
+* NUM-OTHER-SHEEP / NUM-OTHER-WOLVES: The number of non-ego sheep and wolves to create during SETUP-RANDOM.
+* INIT-ENERGY: The starting energy of the ego agent.
+* SIM-LENGTH: How many ticks each individual micro-simulation runs for.
+* EGO-BREED: Chooses whether the ego agent is a "wolf" or a "sheep".
+* MARKINGS: Controls visualization of the simulations:
+    * **none**: No visualizations are drawn.
+    * **mark events**: Stamps an icon when an agent eats or dies.
+    * **mark events and trace all paths**: Draws the paths of all agents in the simulation.
+* REWARD-DISCOUNT: The factor (between 0 and 1) used to decrease the value of future rewards. A value of 1 means future rewards are valued equally to immediate ones.
+* DEATH-PENALTY: The negative reward (energy penalty) applied if the ego agent dies during a simulation.
+* SHEEP-GAIN-FROM-FOOD: The amount of energy a sheep gets from eating a patch of grass.
+* WOLF-GAIN-FROM-FOOD: The percentage of a sheep's energy a wolf gains upon eating it.
+
+**Plots**
+* **Expected rewards**: This plot displays the average reward calculated for each of the ego's three possible actions ("turn left and move," "move forward," "turn right and move") over all the completed simulations.
+
+***
 
 ## THINGS TO NOTICE
+Press SETUP-RANDOM and then the RUN-MICRO-SIM Go button. Watch the "Expected rewards" plot. The lines will fluctuate at first but will begin to stabilize as more simulations are run, giving a clearer picture of which action is best.
 
-(suggested things for the user to notice while running the model)
+Try placing the ego near food or a predator by manually setting the WOLF-COORDS or SHEEP-COORDS variables in the command center before pressing SETUP. Notice how this immediately impacts which action has the highest expected reward.
+
+***
 
 ## THINGS TO TRY
+Set SIM-LENGTH to 1. The agents can only predict the immediate outcome of an action. Now, increase SIM-LENGTH to 5. How does the ability to "see" further into the future change the ego's decisions?
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+Set the DEATH-PENALTY to 0 and then to a large negative number like -50. How does a higher penalty for dying encourage more cautious or risk-averse behavior?
+
+Manually set up a scenario where the ego sheep is between a patch of grass and a wolf. Which action does it choose? Does the outcome change if you adjust the DEATH-PENALTY or SHEEP-GAIN-FROM-FOOD values?
+
+***
 
 ## EXTENDING THE MODEL
+The non-ego agents in this model move randomly. How would the simulation results change if they behaved more intelligently? You could modify the code to have them move towards food or away from predators.
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+A more advanced change would be to have the other agents in the cognitive model use their own cognitive models to make decisions, creating a recursive reasoning process. This would be computationally intensive but could lead to more accurate predictions.
+
+***
 
 ## NETLOGO FEATURES
+This model is designed to be used with the **LevelSpace** extension, which allows one NetLogo model to run other NetLogo models "in the background". This is a powerful technique for creating agents who can use models to reason about their world.
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+The model also uses string variables containing NetLogo code (e.g., `"(move 1) + (eat-grass)"`) and the RUNRESULT primitive to execute them dynamically. This allows actions to be defined and passed between the primary and cognitive models easily.
+
+***
 
 ## RELATED MODELS
+See the original **Wolf Sheep Predation** model, which this model is based on, and the **Wolf Sheep Predation - Micro-Sims** model, which uses this model as its cognitive component.
 
-(models in the NetLogo Models Library and elsewhere which are of related interest)
+***
 
 ## CREDITS AND REFERENCES
+This model is a component of the Wolf Sheep Predation - Micro-Sims model. Please see that model for full credits and references.
 
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)</info>
+* Head, B. Wilensky, U. (2024). NetLogo Wolf Sheep Predation - Micro-Sims model. http://ccl.northwestern.edu/netlogo/models/WolfSheepPredationMicroSims. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
+* Wilensky, U. (1999). NetLogo. http://ccl.northwestern.edu/netlogo/. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
+* Head, B. (2024) Agents Modeling Agents: The Design and Analysis of Multi-Level Agent-Based Models. PhD Thesis, Northwestern University.]]</info>
+]]></info>
   <turtleShapes>
     <shape name="default" rotatable="true" editableColorIndex="0">
       <polygon color="-1920102913" filled="true" marked="true">
